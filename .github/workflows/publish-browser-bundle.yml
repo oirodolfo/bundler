@@ -5,20 +5,105 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      min_hours_between_runs:
+        description: "Minimum hours between automatic builds"
+        required: false
+        default: "2"
 
 permissions:
   contents: write
   pages: write
   id-token: write
+  actions: read
 
 env:
   BUILD_ENTRYPOINT: src/index.ts
   BUILD_GLOBAL_NAME: Rod
   BUILD_MINIFY: false
   GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
+  MIN_HOURS_BETWEEN_RUNS: 2
 
 jobs:
+  guard:
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.guard.outputs.should_run }}
+      reason: ${{ steps.guard.outputs.reason }}
+
+    steps:
+      - name: Decide whether this run should continue
+        id: guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          REPOSITORY: ${{ github.repository }}
+          WORKFLOW_ID: ${{ github.workflow_id }}
+          CURRENT_RUN_ID: ${{ github.run_id }}
+          DEFAULT_MIN_HOURS: ${{ env.MIN_HOURS_BETWEEN_RUNS }}
+          MANUAL_MIN_HOURS: ${{ github.event.inputs.min_hours_between_runs }}
+        run: |
+          set -euo pipefail
+
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "reason=manual_run_always_allowed" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          MIN_HOURS="${MANUAL_MIN_HOURS:-$DEFAULT_MIN_HOURS}"
+          MIN_SECONDS=$((MIN_HOURS * 3600))
+
+          RUNS_JSON="$(gh api "repos/$REPOSITORY/actions/workflows/$WORKFLOW_ID/runs?per_page=10&status=completed")"
+
+          LAST_TWO_CONCLUSIONS="$(echo "$RUNS_JSON" | jq -r --arg current "$CURRENT_RUN_ID" '
+            .workflow_runs
+            | map(select((.id | tostring) != $current))
+            | .[0:2]
+            | .[].conclusion
+          ')"
+
+          FAILURE_COUNT="$(echo "$LAST_TWO_CONCLUSIONS" | grep -c '^failure$' || true)"
+
+          if [ "$FAILURE_COUNT" -eq 2 ]; then
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            echo "reason=last_two_completed_runs_failed" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          LAST_CREATED_AT="$(echo "$RUNS_JSON" | jq -r --arg current "$CURRENT_RUN_ID" '
+            .workflow_runs
+            | map(select((.id | tostring) != $current))
+            | .[0].created_at // empty
+          ')"
+
+          if [ -z "$LAST_CREATED_AT" ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "reason=no_previous_completed_run" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          LAST_SECONDS="$(date -d "$LAST_CREATED_AT" +%s)"
+          NOW_SECONDS="$(date +%s)"
+          DIFF_SECONDS=$((NOW_SECONDS - LAST_SECONDS))
+
+          if [ "$DIFF_SECONDS" -lt "$MIN_SECONDS" ]; then
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            echo "reason=last_completed_run_is_too_recent" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "should_run=true" >> "$GITHUB_OUTPUT"
+          echo "reason=guard_passed" >> "$GITHUB_OUTPUT"
+
+      - name: Print guard decision
+        run: |
+          echo "should_run=${{ steps.guard.outputs.should_run }}"
+          echo "reason=${{ steps.guard.outputs.reason }}"
+
   build:
+    needs: guard
+    if: ${{ needs.guard.outputs.should_run == 'true' }}
     runs-on: ubuntu-latest
 
     steps:
@@ -82,7 +167,10 @@ jobs:
           GIST_DESCRIPTION: Public browser bundle generated from private TypeScript source
 
   deploy-pages:
-    needs: build
+    needs:
+      - guard
+      - build
+    if: ${{ needs.guard.outputs.should_run == 'true' }}
     runs-on: ubuntu-latest
     environment:
       name: github-pages
