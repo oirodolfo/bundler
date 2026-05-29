@@ -351,7 +351,7 @@ interface CipoRuntimeState {
 const runtime: CipoRuntimeState = {
   config: {
     prefix: DEFAULT_PREFIX,
-    debug: false,
+    debug: true,
     darkSelector: '[data-theme="dark"]',
     themeRootSelector: ":root",
     breakpoints: {
