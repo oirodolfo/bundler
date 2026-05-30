@@ -89,7 +89,7 @@ async function main(): Promise<void> {
     console.log(`📦 FILE:  ${file.path}`);
   }
 
-  const outputs = Object.keys(result?.metafile?.outputs);
+  const outputs = Object.keys(result?.metafile?.outputs!);
   
   await fs.writeFile(
    "dist/metafile-outputs.json",
@@ -127,6 +127,9 @@ function createIndexHtml(globalName: string): string {
     <p>ESM: <a href="./bundle.esm.js">bundle.esm.js</a></p>
     <p>IIFE: <a href="./bundle.iife.js">bundle.iife.js</a></p>
     <p>Global name: <code>window.${globalName}</code></p>
+    <h2>Individual modules</h2>
+    ${outputs.map((output) => 
+      `<p>${output}: <a href="./${output}" target="_blank">${output}</a></p>`).join("\n")}
   </body>
 </html>`;
 }
