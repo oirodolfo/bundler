@@ -1,22 +1,12 @@
 /**
  * Fabrica v5.
  *
- * A tiny fine-grained reactive HTML runtime inspired by SolidJS, Preact Signals,
- * Lit-style template caching, and low-level DOM patching.
+ * Tiny fine-grained reactive HTML runtime with cached templates, signals,
+ * effects, batching, cleanup hooks, keyed lists, conditional rendering, refs,
+ * event modifiers, DOM properties, boolean attributes, class maps, style maps,
+ * raw HTML, components, Shadow DOM safety, and userscript-friendly guards.
  *
- * @remarks
- * Main goals:
- * - Compile templates once.
- * - Patch only changed DOM parts.
- * - Support signals, computed values, effects, batching, cleanup hooks.
- * - Support DOM-safe template tags.
- * - Support conditional rendering, keyed lists, refs, events, properties, boolean attributes.
- * - Support class and style diffing.
- * - Work well in Shadow DOM, userscripts, Safari iOS, WebViews, and plain hand-made DOM.
- *
- * @example
- * Basic counter.
- *
+ * @example Basic counter
  * ```ts
  * import Fabrica from "./fabrica";
  *
@@ -29,54 +19,46 @@
  * `);
  * ```
  *
- * @example
- * Conditional rendering.
- *
+ * @example Conditional UI
  * ```ts
  * const open = Fabrica.signal(false);
  *
- * Fabrica.html`
- *   <section>
- *     ${Fabrica.when(
- *       open,
- *       () => Fabrica.html`<p>Open</p>`,
- *       () => Fabrica.html`<p>Closed</p>`,
- *     )}
- *   </section>
+ * const view = Fabrica.html`
+ *   ${Fabrica.when(
+ *     open,
+ *     () => Fabrica.html`<section>Open</section>`,
+ *     () => Fabrica.html`<section>Closed</section>`,
+ *   )}
  * `;
  * ```
  *
- * @example
- * Keyed repeat with per-item signals.
- *
+ * @example Keyed repeat
  * ```ts
- * const todos = Fabrica.signal([
- *   { id: "a", title: "Compile once" },
- *   { id: "b", title: "Patch tiny parts" },
+ * const items = Fabrica.signal([
+ *   { id: "a", label: "Alpha" },
+ *   { id: "b", label: "Beta" },
  * ]);
  *
- * Fabrica.html`
+ * const list = Fabrica.html`
  *   <ul>
  *     ${Fabrica.repeat(
- *       todos,
- *       (todo) => todo.id,
+ *       items,
+ *       (item) => item.id,
  *       ({ item, index }) => Fabrica.html`
- *         <li>${() => index() + 1}. ${() => item().title}</li>
+ *         <li>${() => index() + 1}. ${() => item().label}</li>
  *       `,
  *       {
- *         empty: () => Fabrica.html`<li>No todos</li>`,
+ *         empty: () => Fabrica.html`<li>Empty</li>`,
  *       },
  *     )}
  *   </ul>
  * `;
  * ```
  *
- * @example
- * Ref, property, boolean attribute, event modifiers, classMap and styleMap.
- *
+ * @example Attributes, refs, properties, and events
  * ```ts
- * const disabled = Fabrica.signal(false);
  * const active = Fabrica.signal(true);
+ * const disabled = Fabrica.signal(false);
  *
  * Fabrica.html`
  *   <input
@@ -86,13 +68,8 @@
  *   />
  *
  *   <button
- *     class=${Fabrica.classMap({
- *       "is-active": active,
- *       "is-disabled": disabled,
- *     })}
- *     style=${Fabrica.styleMap({
- *       opacity: () => disabled() ? "0.5" : "1",
- *     })}
+ *     class=${Fabrica.classMap({ active, disabled })}
+ *     style=${Fabrica.styleMap({ opacity: () => disabled() ? "0.5" : "1" })}
  *     @click.prevent.stop=${() => active.update((value) => !value)}
  *   >
  *     Toggle
@@ -100,6 +77,10 @@
  * `;
  * ```
  */
+
+/* ========================================================================== */
+/* Constants                                                                  */
+/* ========================================================================== */
 
 const TEXT_MARKER_PREFIX = "fabrica:text:";
 const ATTR_MARKER_PREFIX = "__fabrica_attr_";
@@ -121,14 +102,14 @@ let trackingEnabled = true;
 let flushQueued = false;
 let batchDepth = 0;
 
-/**
- * A callback used to release resources.
- */
+/* ========================================================================== */
+/* Types                                                                      */
+/* ========================================================================== */
+
 type Cleanup = () => void;
 
-/**
- * Values that can be rendered into the DOM.
- */
+type ReactiveExpression<TValue> = () => TValue;
+
 type RenderValue =
   | string
   | number
@@ -143,14 +124,6 @@ type RenderValue =
   | Directive
   | RawHtml;
 
-/**
- * A lazy function that reads signals and returns a renderable value.
- */
-type ReactiveExpression<TValue> = () => TValue;
-
-/**
- * A function that can be scheduled as an effect runner.
- */
 type EffectRunner = (() => void) & {
   deps: Set<EffectRunner>[];
   cleanups: Cleanup[];
@@ -158,71 +131,27 @@ type EffectRunner = (() => void) & {
   sync: boolean;
 };
 
-/**
- * Fine-grained signal function with mutation helpers.
- */
 export type Signal<TValue> = (() => TValue) & {
-  /**
-   * Stores a new value exactly as provided.
-   *
-   * @remarks
-   * This deliberately does not treat functions as updater callbacks. This means
-   * functions can be stored as signal values. Use `update()` when updater
-   * semantics are desired.
-   *
-   * @param nextValue - New value.
-   */
   set(nextValue: TValue): void;
-
-  /**
-   * Updates the value from the previous value.
-   *
-   * @param updater - Updater callback.
-   */
   update(updater: (currentValue: TValue) => TValue): void;
-
-  /**
-   * Reads the current value without tracking.
-   *
-   * @returns Current value.
-   */
   peek(): TValue;
-
-  /**
-   * Subscribes an effect runner manually.
-   *
-   * @param listener - Effect runner.
-   * @returns Unsubscribe callback.
-   */
   subscribe(listener: EffectRunner): Cleanup;
 };
 
-/**
- * A directive object consumed by child parts.
- */
 type Directive = {
   readonly [DIRECTIVE_BRAND]: true;
   readonly kind: string;
 };
 
-/**
- * Trusted raw HTML wrapper.
- */
 type RawHtml = {
   readonly [RAW_HTML_BRAND]: true;
   readonly value: string;
 };
 
-/**
- * Component function brand.
- */
 type Component<TProps extends object = Record<string, never>> = ((props?: TProps) => RenderValue) & {
   readonly [COMPONENT_BRAND]: true;
 };
 
-/**
- * Template part metadata.
- */
 type TemplatePart =
   | {
       readonly type: "child";
@@ -236,33 +165,21 @@ type TemplatePart =
       readonly name: string;
     };
 
-/**
- * Cached compiled template.
- */
 type CompiledTemplate = {
   readonly template: HTMLTemplateElement;
   readonly parts: TemplatePart[];
 };
 
-/**
- * Context passed to keyed repeat item renderers.
- */
 export type RepeatContext<TItem, TKey extends PropertyKey> = {
   readonly item: Signal<TItem>;
   readonly index: Signal<number>;
   readonly key: Signal<TKey>;
 };
 
-/**
- * Options accepted by keyed repeat.
- */
 type RepeatOptions = {
   readonly empty?: () => RenderValue;
 };
 
-/**
- * Event config parsed from `@click.prevent.stop`.
- */
 type EventConfig = {
   readonly name: string;
   readonly prevent: boolean;
@@ -271,9 +188,6 @@ type EventConfig = {
   readonly options: AddEventListenerOptions;
 };
 
-/**
- * Debug counters.
- */
 type DebugState = {
   enabled: boolean;
   templates: number;
@@ -282,6 +196,46 @@ type DebugState = {
   flushes: number;
   updates: number;
   delegatedEvents: number;
+};
+
+type DirectiveController = {
+  readonly kind: string;
+  update(directive: Directive): void;
+  dispose(): void;
+};
+
+type WhenDirective = Directive & {
+  readonly kind: "when";
+  readonly condition: unknown | Signal<unknown> | (() => unknown);
+  readonly truthy: () => RenderValue;
+  readonly falsy?: () => RenderValue;
+};
+
+type RepeatDirective<TItem = unknown, TKey extends PropertyKey = PropertyKey> = Directive & {
+  readonly kind: "repeat";
+  readonly items: readonly TItem[] | Signal<readonly TItem[]> | (() => readonly TItem[]);
+  readonly key: (item: TItem, index: number) => TKey;
+  readonly render: (context: RepeatContext<TItem, TKey>) => RenderValue;
+  readonly empty?: () => RenderValue;
+};
+
+type RefDirective = Directive & {
+  readonly kind: "ref";
+  readonly callback: (node: Element) => void | Cleanup;
+};
+
+type MapDirective = Directive & {
+  readonly kind: "classMap" | "styleMap";
+  readonly value: Record<string, unknown>;
+};
+
+type RepeatRecord = {
+  readonly item: Signal<unknown>;
+  readonly index: Signal<number>;
+  readonly key: Signal<PropertyKey>;
+  readonly start: Comment;
+  readonly end: Comment;
+  fragment: DocumentFragment | null;
 };
 
 const debugState: DebugState = {
@@ -294,10 +248,14 @@ const debugState: DebugState = {
   delegatedEvents: 0,
 };
 
+/* ========================================================================== */
+/* Debug                                                                      */
+/* ========================================================================== */
+
 /**
  * Enables or disables debug counters.
  *
- * @param enabled - Whether debug counters should be considered enabled.
+ * @param enabled - Whether debug mode is enabled.
  *
  * @example
  * ```ts
@@ -316,19 +274,24 @@ function setDebug(enabled: boolean): void {
  *
  * @example
  * ```ts
- * console.log(Fabrica.debug().updates);
+ * const snapshot = Fabrica.debug();
+ * console.log(snapshot.updates);
  * ```
  */
 function debug(): Readonly<DebugState> {
   return Object.freeze({ ...debugState });
 }
 
+/* ========================================================================== */
+/* Reactivity                                                                 */
+/* ========================================================================== */
+
 /**
  * Creates a fine-grained signal.
  *
  * @remarks
- * Use this instead of manually storing state in variables when UI should update
- * automatically. Reads inside effects or template expressions are tracked.
+ * `set()` stores exactly the provided value, including functions. Use
+ * `update()` for updater semantics.
  *
  * @param initialValue - Initial value.
  * @returns Signal reader with mutation helpers.
@@ -412,7 +375,7 @@ function onCleanup(cleanup: Cleanup): void {
  *
  * @param callback - Effect callback.
  * @param options - Effect options.
- * @returns Dispose function.
+ * @returns Dispose callback.
  *
  * @example
  * ```ts
@@ -466,9 +429,7 @@ function effect(
  *
  * @example
  * ```ts
- * const count = Fabrica.signal(2);
  * const doubled = Fabrica.computed(() => count() * 2);
- * console.log(doubled()); // 4
  * ```
  */
 function computed<TValue>(getter: () => TValue): Signal<TValue> {
@@ -482,7 +443,7 @@ function computed<TValue>(getter: () => TValue): Signal<TValue> {
 }
 
 /**
- * Alias for `computed()`.
+ * Alias for computed.
  *
  * @param getter - Derived getter.
  * @returns Derived signal.
@@ -519,7 +480,7 @@ function untrack<TValue>(callback: () => TValue): TValue {
 }
 
 /**
- * Batches many signal writes into one microtask flush.
+ * Batches multiple signal writes into one microtask flush.
  *
  * @param callback - Batch callback.
  * @returns Callback result.
@@ -547,7 +508,7 @@ function batch<TValue>(callback: () => TValue): TValue {
 }
 
 /**
- * Cleans an effect runner.
+ * Cleans an effect runner dependencies and registered cleanups.
  *
  * @param runner - Effect runner.
  */
@@ -616,16 +577,20 @@ function flushEffects(): void {
   }
 }
 
+/* ========================================================================== */
+/* Public API                                                                 */
+/* ========================================================================== */
+
 /**
  * Creates DOM from a tagged template.
  *
  * @param strings - Template strings.
  * @param values - Dynamic values.
- * @returns Rendered fragment.
+ * @returns Rendered document fragment.
  *
  * @example
  * ```ts
- * const view = Fabrica.html`<strong>${name}</strong>`;
+ * const node = Fabrica.html`<strong>${name}</strong>`;
  * ```
  */
 function html(strings: TemplateStringsArray, ...values: RenderValue[]): DocumentFragment {
@@ -640,12 +605,12 @@ function html(strings: TemplateStringsArray, ...values: RenderValue[]): Document
 /**
  * Creates trusted raw HTML.
  *
- * @param value - Trusted HTML.
+ * @param value - Trusted HTML string.
  * @returns Raw HTML wrapper.
  *
  * @example
  * ```ts
- * Fabrica.html`<article>${Fabrica.html.raw("<strong>Safe because I trust it</strong>")}</article>`;
+ * Fabrica.html`<article>${Fabrica.html.raw("<strong>Trusted</strong>")}</article>`;
  * ```
  */
 html.raw = (value: string): RawHtml => ({
@@ -657,7 +622,7 @@ html.raw = (value: string): RawHtml => ({
  * Replaces a container content and returns dispose.
  *
  * @param container - Container element or fragment.
- * @param value - Value to render.
+ * @param value - Render value.
  * @returns Dispose callback.
  *
  * @example
@@ -681,7 +646,7 @@ function render(container: Element | DocumentFragment, value: RenderValue): Clea
  * Mounts content without clearing the container.
  *
  * @param container - Container element or fragment.
- * @param value - Value to mount.
+ * @param value - Render value.
  * @returns Dispose callback.
  *
  * @example
@@ -712,7 +677,7 @@ function mount(container: Element | DocumentFragment, value: RenderValue): Clean
  * @example
  * ```ts
  * const Header = Fabrica.component(() => Fabrica.html`<header>Hello</header>`);
- * Fabrica.html`${Header()}`;
+ * const view = Fabrica.html`${Header()}`;
  * ```
  */
 function component<TProps extends object = Record<string, never>>(
@@ -745,7 +710,7 @@ function when(
   condition: unknown | Signal<unknown> | (() => unknown),
   truthy: () => RenderValue,
   falsy?: () => RenderValue,
-): Directive {
+): WhenDirective {
   return createDirective({
     kind: "when",
     condition,
@@ -775,7 +740,7 @@ function repeat<TItem, TKey extends PropertyKey>(
   key: (item: TItem, index: number) => TKey,
   renderItem: (context: RepeatContext<TItem, TKey>) => RenderValue,
   options: RepeatOptions = {},
-): Directive {
+): RepeatDirective<TItem, TKey> {
   return createDirective({
     kind: "repeat",
     items,
@@ -796,7 +761,7 @@ function repeat<TItem, TKey extends PropertyKey>(
  * Fabrica.html`<input ref=${Fabrica.ref((node) => node.focus())} />`;
  * ```
  */
-function ref(callback: (node: Element) => void | Cleanup): Directive {
+function ref(callback: (node: Element) => void | Cleanup): RefDirective {
   return createDirective({
     kind: "ref",
     callback,
@@ -814,7 +779,7 @@ function ref(callback: (node: Element) => void | Cleanup): Directive {
  * Fabrica.html`<div class=${Fabrica.classMap({ active })}></div>`;
  * ```
  */
-function classMap(value: Record<string, unknown | Signal<unknown> | (() => unknown)>): Directive {
+function classMap(value: Record<string, unknown | Signal<unknown> | (() => unknown)>): MapDirective {
   return createDirective({
     kind: "classMap",
     value,
@@ -834,7 +799,7 @@ function classMap(value: Record<string, unknown | Signal<unknown> | (() => unkno
  */
 function styleMap(
   value: Record<string, string | number | null | undefined | false | Signal<unknown> | (() => unknown)>,
-): Directive {
+): MapDirective {
   return createDirective({
     kind: "styleMap",
     value,
@@ -855,6 +820,10 @@ function createDirective<TValue extends { readonly kind: string }>(directive: TV
 
   return directive as TValue & Directive;
 }
+
+/* ========================================================================== */
+/* Template Compilation                                                       */
+/* ========================================================================== */
 
 /**
  * Gets a compiled template from cache or compiles it.
@@ -909,10 +878,10 @@ function buildTemplateSource(strings: TemplateStringsArray): string {
 }
 
 /**
- * Detects if the current interpolation is inside an attribute assignment.
+ * Detects whether interpolation is inside an attribute assignment.
  *
  * @param chunk - Static chunk before interpolation.
- * @returns True when interpolation belongs to an attribute.
+ * @returns Whether interpolation belongs to an attribute.
  */
 function isAttributePosition(chunk: string): boolean {
   return /(?:[.?@:a-zA-Z_][\w:.-]*)\s*=\s*(?:"[^"]*|'[^']*)?$/.test(chunk);
@@ -1017,14 +986,14 @@ function getNodePath(root: Node, node: Node): number[] {
   let current: Node | null = node;
 
   while (current && current !== root) {
-    const parent = current.parentNode;
+    const parentNode: Node | null = current.parentNode;
 
-    if (!parent) {
+    if (!parentNode) {
       break;
     }
 
-    path.push(indexOfChild(parent, current));
-    current = parent;
+    path.push(indexOfChild(parentNode, current));
+    current = parentNode;
   }
 
   path.reverse();
@@ -1035,13 +1004,13 @@ function getNodePath(root: Node, node: Node): number[] {
 /**
  * Gets child index using sibling traversal.
  *
- * @param parent - Parent node.
+ * @param parentNode - Parent node.
  * @param child - Child node.
  * @returns Child index.
  */
-function indexOfChild(parent: Node, child: Node): number {
+function indexOfChild(parentNode: Node, child: Node): number {
   let index = 0;
-  let current = parent.firstChild;
+  let current: ChildNode | null = parentNode.firstChild;
 
   while (current && current !== child) {
     index += 1;
@@ -1124,6 +1093,10 @@ function applyParts(fragment: DocumentFragment, parts: readonly TemplatePart[], 
   }
 }
 
+/* ========================================================================== */
+/* Child Parts                                                                */
+/* ========================================================================== */
+
 /**
  * Binds a child marker.
  *
@@ -1161,7 +1134,13 @@ function createChildPart(marker: Node): { readonly start: Comment; readonly end:
   let currentNode: Node | null = null;
   let directiveController: DirectiveController | null = null;
 
-  marker.replaceWith(start, end);
+  const parentNode: Node | null = marker.parentNode;
+
+  if (parentNode) {
+    parentNode.insertBefore(start, marker);
+    parentNode.insertBefore(end, marker);
+    parentNode.removeChild(marker);
+  }
 
   return {
     start,
@@ -1280,15 +1259,6 @@ function createChildPart(marker: Node): { readonly start: Comment; readonly end:
 }
 
 /**
- * Directive controller contract.
- */
-type DirectiveController = {
-  readonly kind: string;
-  update(directive: Directive): void;
-  dispose(): void;
-};
-
-/**
  * Creates a directive controller.
  *
  * @param start - Start boundary.
@@ -1323,24 +1293,24 @@ function createDirectiveController(start: Comment, end: Comment, directive: Dire
  */
 function createWhenController(start: Comment, end: Comment): DirectiveController {
   let disposeEffect: Cleanup | null = null;
-  let currentDirective: Directive & {
-    readonly condition?: unknown;
-    readonly truthy?: () => RenderValue;
-    readonly falsy?: () => RenderValue;
-  };
+  let currentDirective: WhenDirective | null = null;
   let previousBranch = "";
 
   return {
     kind: "when",
 
     update(nextDirective): void {
-      currentDirective = nextDirective as typeof currentDirective;
+      currentDirective = nextDirective as WhenDirective;
 
       if (disposeEffect) {
         return;
       }
 
       disposeEffect = effect(() => {
+        if (!currentDirective) {
+          return;
+        }
+
         const condition = Boolean(readReactiveValue(currentDirective.condition));
         const branch = condition ? "truthy" : "falsy";
 
@@ -1377,12 +1347,7 @@ function createWhenController(start: Comment, end: Comment): DirectiveController
 function createRepeatController(start: Comment, end: Comment): DirectiveController {
   const records = new Map<PropertyKey, RepeatRecord>();
   let disposeItems: Cleanup | null = null;
-  let currentDirective: Directive & {
-    readonly items?: readonly unknown[] | Signal<readonly unknown[]> | (() => readonly unknown[]);
-    readonly key?: (item: unknown, index: number) => PropertyKey;
-    readonly render?: (context: RepeatContext<unknown, PropertyKey>) => RenderValue;
-    readonly empty?: () => RenderValue;
-  };
+  let currentDirective: RepeatDirective | null = null;
   let emptyStart: Comment | null = null;
   let emptyEnd: Comment | null = null;
 
@@ -1390,13 +1355,17 @@ function createRepeatController(start: Comment, end: Comment): DirectiveControll
     kind: "repeat",
 
     update(nextDirective): void {
-      currentDirective = nextDirective as typeof currentDirective;
+      currentDirective = nextDirective as RepeatDirective;
 
       if (disposeItems) {
         return;
       }
 
       const update = (): void => {
+        if (!currentDirective) {
+          return;
+        }
+
         const hasItems = updateRepeat(start, end, records, currentDirective);
 
         if (!hasItems && currentDirective.empty) {
@@ -1443,52 +1412,35 @@ function createRepeatController(start: Comment, end: Comment): DirectiveControll
 }
 
 /**
- * Repeat record.
- */
-type RepeatRecord = {
-  readonly item: Signal<unknown>;
-  readonly index: Signal<number>;
-  readonly key: Signal<PropertyKey>;
-  readonly start: Comment;
-  readonly end: Comment;
-};
-
-/**
  * Updates a keyed repeat range.
  *
  * @param start - Start boundary.
  * @param end - End boundary.
  * @param records - Current records.
- * @param directive - Repeat directive data.
+ * @param directive - Repeat directive.
  * @returns Whether there are visible items.
  */
 function updateRepeat(
   start: Comment,
   end: Comment,
   records: Map<PropertyKey, RepeatRecord>,
-  directive: {
-    readonly items?: readonly unknown[] | Signal<readonly unknown[]> | (() => readonly unknown[]);
-    readonly key?: (item: unknown, index: number) => PropertyKey;
-    readonly render?: (context: RepeatContext<unknown, PropertyKey>) => RenderValue;
-  },
+  directive: RepeatDirective,
 ): boolean {
-  const items = readReactiveValue(directive.items) ?? [];
-  const keyGetter = directive.key ?? ((_item: unknown, index: number) => index);
-  const renderItem = directive.render ?? (() => null);
+  const resolvedItems = readReactiveValue(directive.items);
+  const items = Array.isArray(resolvedItems) ? resolvedItems : [];
   const nextKeys = new Set<PropertyKey>();
-
   let cursor: Node | null = start.nextSibling;
 
   for (let index = 0; index < items.length; index += 1) {
     const item = items[index];
-    const key = keyGetter(item, index);
+    const key = directive.key(item, index);
 
     nextKeys.add(key);
 
     let record = records.get(key);
 
     if (!record) {
-      record = createRepeatRecord(item, index, key, renderItem);
+      record = createRepeatRecord(item, index, key, directive.render);
       records.set(key, record);
     } else {
       batch(() => {
@@ -1498,7 +1450,13 @@ function updateRepeat(
       });
     }
 
-    moveRangeBefore(record.start, record.end, cursor ?? end);
+    if (record.fragment) {
+      end.parentNode?.insertBefore(record.fragment, cursor ?? end);
+      record.fragment = null;
+    } else {
+      moveRangeBefore(record.start, record.end, cursor ?? end);
+    }
+
     cursor = record.end.nextSibling;
   }
 
@@ -1548,8 +1506,13 @@ function createRepeatRecord(
     ...context,
     start,
     end,
+    fragment,
   };
 }
+
+/* ========================================================================== */
+/* Attribute Parts                                                            */
+/* ========================================================================== */
 
 /**
  * Binds an attribute, property, boolean attribute, ref, or event.
@@ -1564,7 +1527,7 @@ function bindAttributePart(node: Node, rawName: string, value: RenderValue): voi
   }
 
   if (isRefDirective(value)) {
-    const cleanup = (value as { readonly callback: (node: Element) => void | Cleanup }).callback(node);
+    const cleanup = value.callback(node);
 
     if (typeof cleanup === "function") {
       registerCleanup(node, cleanup);
@@ -1611,12 +1574,12 @@ function bindPlainAttributePart(element: Element, name: string, value: RenderVal
     const next = readReactiveValue(value);
 
     if (isClassMapDirective(next) && name === "class") {
-      mapState = applyClassMap(element, (next as { readonly value: Record<string, unknown> }).value, mapState);
+      mapState = applyClassMap(element, next.value, mapState);
       return;
     }
 
     if (isStyleMapDirective(next) && name === "style") {
-      mapState = applyStyleMap(element, (next as { readonly value: Record<string, unknown> }).value, mapState);
+      mapState = applyStyleMap(element, next.value, mapState);
       return;
     }
 
@@ -1731,6 +1694,10 @@ function bindConditionalClassPart(element: Element, className: string, value: Re
   }
 }
 
+/* ========================================================================== */
+/* Events                                                                     */
+/* ========================================================================== */
+
 /**
  * Binds an event listener.
  *
@@ -1746,7 +1713,7 @@ function bindEventPart(element: Element, rawEventName: string, value: RenderValu
     return;
   }
 
-  let previousHandler: ((event: Event) => void) & { original?: unknown } | null = null;
+  let previousHandler: (((event: Event) => void) & { original?: unknown }) | null = null;
 
   const update = (): void => {
     const handler = isSignal(value) ? value() : value;
@@ -1863,7 +1830,7 @@ function ensureDelegatedEvent(root: Document, eventName: string): void {
   debugState.delegatedEvents += 1;
 
   root.addEventListener(eventName, (event) => {
-    let current = event.target as Node | null;
+    let current: Node | null = event.target as Node | null;
 
     while (current && current !== root) {
       const handlers = (current as Element & {
@@ -1906,6 +1873,10 @@ function parseEventName(rawEventName: string): EventConfig {
     },
   };
 }
+
+/* ========================================================================== */
+/* classMap / styleMap                                                        */
+/* ========================================================================== */
 
 /**
  * Applies class map diff.
@@ -1973,6 +1944,10 @@ function applyStyleMap(
   return { previousKeys: nextKeys };
 }
 
+/* ========================================================================== */
+/* DOM Operations                                                             */
+/* ========================================================================== */
+
 /**
  * Moves an inclusive range before another node.
  *
@@ -1981,9 +1956,9 @@ function applyStyleMap(
  * @param before - Reference node.
  */
 function moveRangeBefore(start: Node, end: Node, before: Node): void {
-  const parent = before.parentNode;
+  const parentNode: Node | null = before.parentNode;
 
-  if (!parent || start === before || end.nextSibling === before) {
+  if (!parentNode || start === before || end.nextSibling === before) {
     return;
   }
 
@@ -1991,17 +1966,17 @@ function moveRangeBefore(start: Node, end: Node, before: Node): void {
   let current: Node | null = start;
 
   while (current) {
-    const next = current.nextSibling;
+    const nextNode: Node | null = current.nextSibling;
     fragment.append(current);
 
     if (current === end) {
       break;
     }
 
-    current = next;
+    current = nextNode;
   }
 
-  parent.insertBefore(fragment, before);
+  parentNode.insertBefore(fragment, before);
 }
 
 /**
@@ -2014,14 +1989,14 @@ function removeRange(start: Node, end: Node): void {
   let current: Node | null = start;
 
   while (current) {
-    const next = current.nextSibling;
-    current.remove();
+    const nextNode: Node | null = current.nextSibling;
+    current.parentNode?.removeChild(current);
 
     if (current === end) {
       break;
     }
 
-    current = next;
+    current = nextNode;
   }
 }
 
@@ -2032,13 +2007,13 @@ function removeRange(start: Node, end: Node): void {
  * @param end - End boundary.
  */
 function clearRange(start: Comment, end: Comment): void {
-  let current = start.nextSibling;
+  let current: Node | null = start.nextSibling;
 
   while (current && current !== end) {
-    const next = current.nextSibling;
+    const nextNode: Node | null = current.nextSibling;
     disposeTree(current);
-    current.remove();
-    current = next;
+    current.parentNode?.removeChild(current);
+    current = nextNode;
   }
 }
 
@@ -2049,24 +2024,24 @@ function clearRange(start: Comment, end: Comment): void {
  * @param value - Value to insert.
  */
 function insertBefore(referenceNode: Node, value: RenderValue): void {
-  const parent = referenceNode.parentNode;
+  const parentNode: Node | null = referenceNode.parentNode;
 
-  if (!parent) {
+  if (!parentNode) {
     return;
   }
 
-  appendValue(parent, value, referenceNode);
+  appendValue(parentNode, value, referenceNode);
 }
 
 /**
  * Appends or inserts a render value.
  *
- * @param parent - Parent node.
+ * @param parentNode - Parent node.
  * @param value - Render value.
  * @param beforeNode - Optional reference node.
  */
-function appendValue(parent: Node | null, value: RenderValue, beforeNode: Node | null = null): void {
-  if (!parent) {
+function appendValue(parentNode: Node | null, value: RenderValue, beforeNode: Node | null = null): void {
+  if (!parentNode) {
     return;
   }
 
@@ -2078,7 +2053,7 @@ function appendValue(parent: Node | null, value: RenderValue, beforeNode: Node |
 
   if (Array.isArray(resolvedValue)) {
     for (const item of resolvedValue) {
-      appendValue(parent, item, beforeNode);
+      appendValue(parentNode, item, beforeNode);
     }
 
     return;
@@ -2087,16 +2062,16 @@ function appendValue(parent: Node | null, value: RenderValue, beforeNode: Node |
   if (isRawHtml(resolvedValue)) {
     const template = document.createElement("template");
     template.innerHTML = resolvedValue.value;
-    parent.insertBefore(template.content, beforeNode);
+    parentNode.insertBefore(template.content, beforeNode);
     return;
   }
 
   if (isDomNode(resolvedValue)) {
-    parent.insertBefore(resolvedValue, beforeNode);
+    parentNode.insertBefore(resolvedValue, beforeNode);
     return;
   }
 
-  parent.insertBefore(document.createTextNode(String(resolvedValue)), beforeNode);
+  parentNode.insertBefore(document.createTextNode(String(resolvedValue)), beforeNode);
 }
 
 /**
@@ -2151,6 +2126,10 @@ function disposeRange(start: Node, end: Node): void {
     current = current.nextSibling;
   }
 }
+
+/* ========================================================================== */
+/* Guards                                                                     */
+/* ========================================================================== */
 
 /**
  * Reads a signal or reactive expression.
@@ -2232,7 +2211,7 @@ function isDirective(value: unknown): value is Directive {
  * @param value - Value.
  * @returns Whether value is ref directive.
  */
-function isRefDirective(value: unknown): value is Directive {
+function isRefDirective(value: unknown): value is RefDirective {
   return isDirective(value) && value.kind === "ref";
 }
 
@@ -2242,7 +2221,7 @@ function isRefDirective(value: unknown): value is Directive {
  * @param value - Value.
  * @returns Whether value is classMap directive.
  */
-function isClassMapDirective(value: unknown): value is Directive {
+function isClassMapDirective(value: unknown): value is MapDirective {
   return isDirective(value) && value.kind === "classMap";
 }
 
@@ -2252,7 +2231,7 @@ function isClassMapDirective(value: unknown): value is Directive {
  * @param value - Value.
  * @returns Whether value is styleMap directive.
  */
-function isStyleMapDirective(value: unknown): value is Directive {
+function isStyleMapDirective(value: unknown): value is MapDirective {
   return isDirective(value) && value.kind === "styleMap";
 }
 
@@ -2311,16 +2290,18 @@ function hasReactiveValue(value: unknown): boolean {
     return false;
   }
 
-  if (value.kind === "classMap" || value.kind === "styleMap") {
-    return Object.values((value as { readonly value: Record<string, unknown> }).value).some(
-      (entry) => isSignal(entry) || isReactiveExpression(entry),
-    );
+  if (isClassMapDirective(value) || isStyleMapDirective(value)) {
+    return Object.values(value.value).some((entry) => isSignal(entry) || isReactiveExpression(entry));
   }
 
   return false;
 }
 
-const Fábrica = Object.freeze({
+/* ========================================================================== */
+/* Export                                                                     */
+/* ========================================================================== */
+
+const Fabrica = Object.freeze({
   html,
   render,
   mount,
@@ -2343,14 +2324,12 @@ const Fábrica = Object.freeze({
 
 declare global {
   interface Window {
-    Fabrica: typeof Fábrica;
-    Fábrica: typeof Fábrica;
+    Fabrica: typeof Fabrica;
   }
 }
 
 if (typeof window !== "undefined") {
-  window.Fabrica = Fábrica;
-  window.Fábrica = Fábrica;
+  window.Fabrica = Fabrica;
 }
 
 export default Fábrica;
