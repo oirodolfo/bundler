@@ -24,6 +24,10 @@ on:
         required: false
         default: "2"
 
+concurrency:
+  group: publish-browser-bundle-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: write
   pages: write
@@ -34,7 +38,6 @@ env:
   BUILD_ENTRYPOINT: src/index.ts
   BUILD_GLOBAL_NAME: Rod
   BUILD_MINIFY: false
-  GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
   MIN_HOURS_BETWEEN_RUNS: 2
   WORKFLOW_FILE: publish-browser-bundle.yml
 
@@ -55,7 +58,6 @@ jobs:
           WORKFLOW_FILE: ${{ env.WORKFLOW_FILE }}
           CURRENT_RUN_ID: ${{ github.run_id }}
           DEFAULT_MIN_HOURS: ${{ env.MIN_HOURS_BETWEEN_RUNS }}
-          MANUAL_MIN_HOURS: ${{ github.event.inputs.min_hours_between_runs }}
         run: |
           set -euo pipefail
 
@@ -65,7 +67,7 @@ jobs:
             exit 0
           fi
 
-          MIN_HOURS="${MANUAL_MIN_HOURS:-$DEFAULT_MIN_HOURS}"
+          MIN_HOURS="$DEFAULT_MIN_HOURS"
           MIN_SECONDS=$((MIN_HOURS * 3600))
 
           RUNS_JSON="$(gh api "repos/$REPOSITORY/actions/workflows/$WORKFLOW_FILE/runs?per_page=10&status=completed")"
@@ -142,25 +144,24 @@ jobs:
         run: pnpm typecheck
 
       - name: Build browser bundles
-        id: build
-        run: | 
-          pnpm build
-          echo "files=$(cat dist/metafile-outputs.json)" >> "$GITHUB_OUTPUT"
+        run: pnpm build
+
+      - name: Collect release assets
+        id: assets
+        run: |
+          set -euo pipefail
+
+          {
+            echo "files<<EOF"
+            find dist -type f \( -name "*.js" -o -name "*.js.map" -o -name "*.html" -o -name "*.json" -o -name "*.txt" \) | sort
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Upload release artifact
         uses: actions/upload-artifact@v4
         with:
           name: browser-bundle
           path: dist
-
-      - name: Collect release assets
-        id: assets
-        run: |
-          {
-            echo 'files<<EOF'
-            find dist -type f \( -name '*.js' -o -name '*.js.map' \)
-            echo 'EOF'
-          } >> "$GITHUB_OUTPUT"
 
       - name: Publish GitHub Release assets
         uses: softprops/action-gh-release@v2
@@ -169,9 +170,10 @@ jobs:
           name: Browser Bundle Latest
           body: Automated browser bundle generated from the private TypeScript repository.
           files: ${{ steps.assets.outputs.files }}
+          overwrite_files: true
+          make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
 
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v3
@@ -179,7 +181,7 @@ jobs:
           path: dist
 
       - name: Publish public Gist
-        if: ${{ env.GIST_TOKEN != '' }}
+        if: ${{ env.GIST_TOKEN != '' && env.GIST_ID != '' }}
         run: pnpm publish:gist
         env:
           GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
