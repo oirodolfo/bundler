@@ -142,7 +142,10 @@ jobs:
         run: pnpm typecheck
 
       - name: Build browser bundles
-        run: pnpm build
+        id: build
+        run: | 
+          pnpm build
+          echo "files=$(cat dist/metafile-outputs.json)" >> "$GITHUB_OUTPUT"
 
       - name: Upload release artifact
         uses: actions/upload-artifact@v4
