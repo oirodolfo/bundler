@@ -121,6 +121,25 @@
  * console.log(app.timeline.patches.map((patch) => patch.cause));
  * // ["profile-update", "profile-update"]
  * ```
+ * -----------
+ * Seiva v1.
+ *
+ * A tiny reactive state library with writable cells, derived views, DOM reflection,
+ * batched stories, cause tracking, patch timeline, and verb-style mutations.
+ *
+ * @example Basic counter
+ * ```ts
+ * import Seiva from "./seiva-state";
+ *
+ * const app = Seiva.world({
+ *   count: 0,
+ * });
+ *
+ * app.count.add(1);
+ *
+ * console.log(app.count.value);
+ * // 1
+ * ```
  */
 
 type Dispose = () => void;
@@ -128,6 +147,7 @@ type Reader<T> = () => T;
 type Writer<T> = (value: T) => void;
 type Watcher<T> = (value: T, previous: T, patch: Patch) => void;
 type AnyRecord = Record<PropertyKey, unknown>;
+type ReadableCell<T> = Cell<T> | ViewCell<T>;
 
 const EMPTY_TEXT = "";
 const DEFAULT_CAUSE = "manual";
@@ -142,25 +162,14 @@ const pendingEffects = new Set<ReactiveEffect>();
 /**
  * Describes one state mutation.
  *
- * @remarks
- * Patches are intentionally tiny plain objects. They are cheap to create,
- * serializable, and useful for debugging, devtools, undo stacks, telemetry, and
- * time-travel experiments.
- *
  * @example
  * ```ts
  * const app = world({ count: 0 });
  *
- * app.count.add(1).because("click");
+ * app.count.because("click").add(1);
  *
- * console.log(app.timeline.patches[0]);
- * // {
- * //   cause: "click",
- * //   path: ["count"],
- * //   previous: 0,
- * //   next: 1,
- * //   time: 1710000000000
- * // }
+ * console.log(app.timeline.patches[0]?.cause);
+ * // "click"
  * ```
  */
 export interface Patch {
@@ -179,11 +188,6 @@ export interface Patch {
  * const app = world({ count: 0 });
  *
  * app.count.add(1);
- * app.count.add(1);
- *
- * console.log(app.timeline.patches.length);
- * // 2
- *
  * app.timeline.clear();
  *
  * console.log(app.timeline.patches.length);
@@ -197,17 +201,6 @@ export interface Timeline {
    * Clears all recorded patches.
    *
    * @returns Nothing.
-   *
-   * @example
-   * ```ts
-   * const app = world({ count: 0 });
-   *
-   * app.count.add(1);
-   * app.timeline.clear();
-   *
-   * console.log(app.timeline.patches);
-   * // []
-   * ```
    */
   clear(): void;
 }
@@ -215,18 +208,11 @@ export interface Timeline {
 /**
  * A writable reactive value.
  *
- * @remarks
- * A cell is the smallest reactive unit in Seiva. Reading it inside an effect
- * registers a dependency. Mutating it notifies watchers, updates derived views,
- * and refreshes reflected DOM nodes.
- *
  * @example
  * ```ts
  * const count = cell(0);
  *
- * count.add(1);
- * count.subtract(1);
- * count.become(10);
+ * count.add(1).subtract(1).become(10);
  *
  * console.log(count.value);
  * // 10
@@ -262,9 +248,6 @@ export interface Cell<T> {
    * const name = cell("Rod");
    *
    * name.become("Rodolfo");
-   *
-   * console.log(name.value);
-   * // "Rodolfo"
    * ```
    */
   become(next: T): this;
@@ -280,9 +263,6 @@ export interface Cell<T> {
    * const count = cell(1);
    *
    * count.update((value) => value * 10);
-   *
-   * console.log(count.value);
-   * // 10
    * ```
    */
   update(mutator: (value: T) => T): this;
@@ -317,9 +297,6 @@ export interface Cell<T> {
    * ```ts
    * const count = cell(2);
    * const label = count.view((value) => `Count: ${value}`);
-   *
-   * console.log(label.value);
-   * // "Count: 2"
    * ```
    */
   view<R>(reader: (value: T) => R): ViewCell<R>;
@@ -330,27 +307,13 @@ export interface Cell<T> {
    * @param target - A DOM node or advanced reflection target.
    * @returns A disposer that removes the reflection.
    *
-   * @example Text node
+   * @example
    * ```ts
    * const count = cell(0);
    * const node = document.createTextNode("");
    *
    * count.reflect(node);
    * count.add(1);
-   *
-   * console.log(node.textContent);
-   * // "1"
-   * ```
-   *
-   * @example Input value
-   * ```ts
-   * const name = cell("Rod");
-   * const input = document.createElement("input");
-   *
-   * name.reflect({
-   *   node: input,
-   *   property: "value",
-   * });
    * ```
    */
   reflect(target: Node | ReflectTarget<T>): Dispose;
@@ -375,16 +338,6 @@ export interface Cell<T> {
    *
    * @param amount - Amount to add.
    * @returns The same cell for fluent chaining.
-   *
-   * @example
-   * ```ts
-   * const count = cell(1);
-   *
-   * count.add(4);
-   *
-   * console.log(count.value);
-   * // 5
-   * ```
    */
   add(amount: number): this;
 
@@ -393,16 +346,6 @@ export interface Cell<T> {
    *
    * @param amount - Amount to subtract.
    * @returns The same cell for fluent chaining.
-   *
-   * @example
-   * ```ts
-   * const count = cell(10);
-   *
-   * count.subtract(3);
-   *
-   * console.log(count.value);
-   * // 7
-   * ```
    */
   subtract(amount: number): this;
 
@@ -410,16 +353,6 @@ export interface Cell<T> {
    * Flips a boolean value.
    *
    * @returns The same cell for fluent chaining.
-   *
-   * @example
-   * ```ts
-   * const open = cell(false);
-   *
-   * open.flip();
-   *
-   * console.log(open.value);
-   * // true
-   * ```
    */
   flip(): this;
 
@@ -428,16 +361,6 @@ export interface Cell<T> {
    *
    * @param text - Text to append.
    * @returns The same cell for fluent chaining.
-   *
-   * @example
-   * ```ts
-   * const title = cell("Hello");
-   *
-   * title.append(", Rod");
-   *
-   * console.log(title.value);
-   * // "Hello, Rod"
-   * ```
    */
   append(text: string): this;
 
@@ -446,16 +369,6 @@ export interface Cell<T> {
    *
    * @param items - Items to append.
    * @returns The same cell for fluent chaining.
-   *
-   * @example
-   * ```ts
-   * const todos = cell<string[]>([]);
-   *
-   * todos.push("Build Seiva");
-   *
-   * console.log(todos.value);
-   * // ["Build Seiva"]
-   * ```
    */
   push(...items: T extends readonly (infer Item)[] ? Item[] : never): this;
 
@@ -464,16 +377,6 @@ export interface Cell<T> {
    *
    * @param predicate - Function returning true for items to remove.
    * @returns The same cell for fluent chaining.
-   *
-   * @example
-   * ```ts
-   * const numbers = cell([1, 2, 3, 4]);
-   *
-   * numbers.remove((number) => number % 2 === 0);
-   *
-   * console.log(numbers.value);
-   * // [1, 3]
-   * ```
    */
   remove(predicate: T extends readonly (infer Item)[] ? (item: Item, index: number) => boolean : never): this;
 
@@ -482,16 +385,6 @@ export interface Cell<T> {
    *
    * @param index - Array index.
    * @returns A writable cell targeting the selected item.
-   *
-   * @example
-   * ```ts
-   * const names = cell(["Rod", "Ana"]);
-   *
-   * names.at(0).become("Rodolfo");
-   *
-   * console.log(names.value);
-   * // ["Rodolfo", "Ana"]
-   * ```
    */
   at(index: number): Cell<T extends readonly (infer Item)[] ? Item : never>;
 
@@ -500,26 +393,12 @@ export interface Cell<T> {
    *
    * @param key - Object property key.
    * @returns A writable cell targeting the selected property.
-   *
-   * @example
-   * ```ts
-   * const user = cell({ name: "Rod", active: true });
-   *
-   * user.pick("active").flip();
-   *
-   * console.log(user.value.active);
-   * // false
-   * ```
    */
   pick<K extends keyof T>(key: K): Cell<T[K]>;
 }
 
 /**
  * A readonly reactive derived value.
- *
- * @remarks
- * Views are recalculated when their dependencies change. They can be watched,
- * reflected into the DOM, or mapped into deeper derived views.
  *
  * @example
  * ```ts
@@ -538,15 +417,6 @@ export interface ViewCell<T> {
    * Reads the current derived value.
    *
    * @returns The cached derived value.
-   *
-   * @example
-   * ```ts
-   * const count = cell(2);
-   * const doubled = count.view((value) => value * 2);
-   *
-   * console.log(doubled.get());
-   * // 4
-   * ```
    */
   get(): T;
 
@@ -555,17 +425,6 @@ export interface ViewCell<T> {
    *
    * @param watcher - Function called whenever the derived value changes.
    * @returns A disposer that removes the watcher.
-   *
-   * @example
-   * ```ts
-   * const count = cell(1);
-   * const doubled = count.view((value) => value * 2);
-   *
-   * doubled.watch((value) => console.log(value));
-   *
-   * count.add(1);
-   * // logs 4
-   * ```
    */
   watch(watcher: Watcher<T>): Dispose;
 
@@ -574,15 +433,6 @@ export interface ViewCell<T> {
    *
    * @param reader - Function mapping the current derived value.
    * @returns A readonly derived cell.
-   *
-   * @example
-   * ```ts
-   * const count = cell(1);
-   *
-   * const label = count
-   *   .view((value) => value * 2)
-   *   .view((value) => `Doubled: ${value}`);
-   * ```
    */
   view<R>(reader: (value: T) => R): ViewCell<R>;
 
@@ -591,15 +441,6 @@ export interface ViewCell<T> {
    *
    * @param target - A DOM node or advanced reflection target.
    * @returns A disposer that removes the reflection.
-   *
-   * @example
-   * ```ts
-   * const count = cell(1);
-   * const label = count.view((value) => `Count: ${value}`);
-   * const node = document.createElement("span");
-   *
-   * label.reflect(node);
-   * ```
    */
   reflect(target: Node | ReflectTarget<T>): Dispose;
 }
@@ -607,31 +448,14 @@ export interface ViewCell<T> {
 /**
  * Advanced DOM reflection target.
  *
- * @remarks
- * Use this when the default `textContent` reflection is not enough. It supports
- * property reflection, custom readers, custom writers, and custom input events.
- *
- * @example Class name reflection
+ * @example Input value
  * ```ts
- * const theme = cell("dark");
- * const card = document.createElement("div");
+ * const name = cell("Rod");
+ * const input = document.createElement("input");
  *
- * theme.reflect({
- *   node: card,
- *   property: "className",
- * });
- * ```
- *
- * @example Custom writer
- * ```ts
- * const visible = cell(true);
- * const panel = document.createElement("section");
- *
- * visible.reflect({
- *   node: panel,
- *   write(node, value) {
- *     (node as HTMLElement).hidden = !value;
- *   },
+ * name.reflect({
+ *   node: input,
+ *   property: "value",
  * });
  * ```
  *
@@ -684,22 +508,21 @@ export type WorldShape<T extends AnyRecord> = {
    * @param cause - Human-readable batch cause.
    * @param run - Function containing related updates.
    * @returns The result returned by `run`.
-   *
-   * @example
-   * ```ts
-   * const app = world({
-   *   count: 0,
-   *   name: "Rod",
-   * });
-   *
-   * app.story("setup", () => {
-   *   app.count.add(1);
-   *   app.name.become("Rodolfo");
-   * });
-   * ```
    */
   story<R>(cause: string, run: () => R): R;
 };
+
+/**
+ * Public Seiva API object.
+ */
+export interface SeivaApi {
+  readonly cell: typeof cell;
+  readonly world: typeof world;
+  readonly story: typeof story;
+  readonly effect: typeof effect;
+  readonly text: typeof text;
+  readonly reflect: typeof reflect;
+}
 
 interface ReactiveSource {
   subscribeEffect(effect: ReactiveEffect): void;
@@ -708,10 +531,6 @@ interface ReactiveSource {
 
 /**
  * Small dependency-tracking effect.
- *
- * @remarks
- * This class is intentionally private. It uses Set-based dependency cleanup so
- * effects can change dependencies between runs without leaking subscriptions.
  */
 class ReactiveEffect {
   private readonly dependencies = new Set<ReactiveSource>();
@@ -851,6 +670,7 @@ class WritableCell<T> implements Cell<T>, ReactiveSource {
   public push(...items: T extends readonly (infer Item)[] ? Item[] : never): this {
     return this.update((value) => {
       const list = assertArray(value);
+
       return list.concat(items as unknown[]) as T;
     });
   }
@@ -1075,9 +895,9 @@ class DerivedCell<T> implements ViewCell<T>, ReactiveSource {
     public readonly path: readonly PropertyKey[],
     private readonly timeline: PatchTimeline,
   ) {
-    const effect = new ReactiveEffect(() => {
-      const previous = this.cached;
-      const next = this.reader();
+    const reactiveEffect = new ReactiveEffect(() => {
+      const previous: T = this.cached;
+      const next: T = this.reader();
 
       if (!this.initialized) {
         this.cached = next;
@@ -1110,7 +930,7 @@ class DerivedCell<T> implements ViewCell<T>, ReactiveSource {
       }
     });
 
-    effect.run();
+    reactiveEffect.run();
   }
 
   public get value(): T {
@@ -1162,29 +982,6 @@ class DerivedCell<T> implements ViewCell<T>, ReactiveSource {
  * const count = cell(0);
  *
  * count.add(1);
- *
- * console.log(count.value);
- * // 1
- * ```
- *
- * @example String cell
- * ```ts
- * const message = cell("Hello");
- *
- * message.append(", Rod");
- *
- * console.log(message.value);
- * // "Hello, Rod"
- * ```
- *
- * @example Boolean cell
- * ```ts
- * const open = cell(false);
- *
- * open.flip();
- *
- * console.log(open.value);
- * // true
  * ```
  */
 export function cell<T>(initial: T): Cell<T> {
@@ -1202,32 +999,28 @@ export function cell<T>(initial: T): Cell<T> {
  * const app = world({
  *   count: 0,
  *   name: "Rod",
- *   dark: true,
- *   todos: [] as Array<{ text: string; done: boolean }>,
  * });
  *
  * app.count.add(1);
  * app.name.become("Rodolfo");
- * app.dark.flip();
- * app.todos.push({ text: "Ship v1", done: false });
  * ```
  */
 export function world<T extends AnyRecord>(initial: T): WorldShape<T> {
   const timeline = new PatchTimeline();
 
-  const result: Partial<WorldShape<T>> = {
+  const result = {
     timeline,
 
     story<R>(cause: string, run: () => R): R {
       return story(cause, run);
     },
-  };
+  } as WorldShape<T>;
 
   for (const key of Object.keys(initial) as Array<keyof T>) {
-    result[key] = new WritableCell(initial[key], [key], timeline) as WorldShape<T>[typeof key];
+    result[key] = new WritableCell(initial[key], [key], timeline) as unknown as WorldShape<T>[typeof key];
   }
 
-  return result as WorldShape<T>;
+  return result;
 }
 
 /**
@@ -1240,11 +1033,9 @@ export function world<T extends AnyRecord>(initial: T): WorldShape<T> {
  * @example
  * ```ts
  * const count = cell(0);
- * const name = cell("Rod");
  *
  * story("setup", () => {
  *   count.add(1);
- *   name.become("Rodolfo");
  * });
  * ```
  */
@@ -1300,26 +1091,15 @@ export function effect(run: () => void): Dispose {
  * @param value - Plain value, writable cell, or derived view.
  * @returns A DOM Text node.
  *
- * @example Plain text
- * ```ts
- * const node = text("Hello");
- *
- * console.log(node.textContent);
- * // "Hello"
- * ```
- *
  * @example Reactive text
  * ```ts
  * const count = cell(0);
  * const node = text(count);
  *
  * count.add(1);
- *
- * console.log(node.textContent);
- * // "1"
  * ```
  */
-export function text(value: string | number | boolean | Cell<unknown> | ViewCell<unknown>): Text {
+export function text<T>(value: string | number | boolean | ReadableCell<T>): Text {
   const node = document.createTextNode(EMPTY_TEXT);
 
   if (isReadable(value)) {
@@ -1345,11 +1125,9 @@ export function text(value: string | number | boolean | Cell<unknown> | ViewCell
  * const label = document.createElement("span");
  *
  * reflect(label, count);
- *
- * count.add(1);
  * ```
  */
-export function reflect<T>(target: Node | ReflectTarget<T>, source: Cell<T> | ViewCell<T>): Dispose {
+export function reflect<T>(target: Node | ReflectTarget<T>, source: ReadableCell<T>): Dispose {
   return source.reflect(target);
 }
 
@@ -1362,7 +1140,7 @@ function createArrayIndexLens<T>(
 
   return new LensCell<Item>(
     () => assertArray(parent.get())[index] as Item,
-    (next) => {
+    (next: Item) => {
       parent.update((value) => {
         const list = assertArray(value).slice();
 
@@ -1373,7 +1151,7 @@ function createArrayIndexLens<T>(
     },
     parent.path.concat(index),
     timeline,
-  );
+  ) as Cell<T extends readonly (infer CurrentItem)[] ? CurrentItem : never>;
 }
 
 function createObjectPropertyLens<T, K extends keyof T>(
@@ -1383,7 +1161,7 @@ function createObjectPropertyLens<T, K extends keyof T>(
 ): Cell<T[K]> {
   return new LensCell<T[K]>(
     () => assertObject(parent.get())[key as PropertyKey] as T[K],
-    (next) => {
+    (next: T[K]) => {
       parent.update((value) => ({
         ...(assertObject(value) as object),
         [key]: next,
@@ -1394,7 +1172,7 @@ function createObjectPropertyLens<T, K extends keyof T>(
   );
 }
 
-function reflectCell<T>(source: Cell<T> | ViewCell<T>, target: Node | ReflectTarget<T>): Dispose {
+function reflectCell<T>(source: ReadableCell<T>, target: Node | ReflectTarget<T>): Dispose {
   const config: ReflectTarget<T> = target instanceof Node ? { node: target } : target;
   const node = config.node;
   const property = config.property;
@@ -1413,7 +1191,7 @@ function reflectCell<T>(source: Cell<T> | ViewCell<T>, target: Node | ReflectTar
   const read = config.read ?? createDefaultDomReader<T>(property);
   const event = config.event ?? DEFAULT_INPUT_EVENT;
 
-  const listener = () => {
+  const listener = (): void => {
     source.become(read(node));
   };
 
@@ -1445,28 +1223,28 @@ function createDefaultDomReader<T>(property?: keyof Node | string): (node: Node)
   return (node) => node.textContent as T;
 }
 
-function scheduleEffect(effect: ReactiveEffect): void {
+function scheduleEffect(effectToSchedule: ReactiveEffect): void {
   if (batchDepth > 0) {
-    pendingEffects.add(effect);
+    pendingEffects.add(effectToSchedule);
     return;
   }
 
-  effect.run();
+  effectToSchedule.run();
 }
 
 function flushEffects(): void {
-  for (const effect of pendingEffects) {
-    effect.run();
+  for (const effectToFlush of pendingEffects) {
+    effectToFlush.run();
   }
 
   pendingEffects.clear();
 }
 
-function isReadable(value: unknown): value is Cell<unknown> | ViewCell<unknown> {
+function isReadable(value: unknown): value is ReadableCell<unknown> {
   return Boolean(value && typeof value === "object" && "get" in value && "reflect" in value);
 }
 
-function isWritableCell<T>(value: Cell<T> | ViewCell<T>): value is Cell<T> {
+function isWritableCell<T>(value: ReadableCell<T>): value is Cell<T> {
   return "become" in value;
 }
 
@@ -1514,7 +1292,7 @@ function assertObject(value: unknown): AnyRecord {
   return value as AnyRecord;
 }
 
-const Seiva = Object.freeze({
+const Seiva: SeivaApi = Object.freeze({
   cell,
   world,
   story,
