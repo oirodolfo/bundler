@@ -1,7 +1,7 @@
-import { $ } from "@/bag";
-import { config } from "@/install-state";
-import type { InstallOptions } from "@/types";
-import type { FabricaApi } from "@/public-api";
+import { $ } from "./bag";
+import { config } from "./install-state";
+import type { InstallOptions } from "./types";
+import type { FabricaApi } from "./public-api";
 
 const previousDollar = globalThis.$;
 const previousDollarEl = globalThis.$el;
