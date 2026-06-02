@@ -121,7 +121,7 @@ async function main(): Promise<void> {
 async function collectModuleEntryPoints(): Promise<string[]> {
   const files: string[] = [];
 
-  for await (const file of glob("src/**/*.ts")) {
+  for await (const file of glob("src/*.ts")) {
     if (file === "src/index.ts") {
       continue;
     }
