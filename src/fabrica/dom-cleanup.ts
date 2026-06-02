@@ -1,4 +1,4 @@
-import type { Cleanup } from "@/types";
+import type { Cleanup } from "./types";
 
 /** Cleanups attached to DOM nodes. WeakMap lets the browser collect removed nodes. */
 const nodeCleanups = new WeakMap<Node, Cleanup[]>();
