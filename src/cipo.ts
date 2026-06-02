@@ -1,353 +1,474 @@
-/*
+/**
  * ============================================================================
- * Cipó Runtime Usage Examples
+ * Cipó
  * ============================================================================
  *
- * 1. Basic atomic CSS
+ * Atomic CSS Runtime + CSS DSL + Theme Engine + Inline Styles
  *
- * const button = css`
- *   color: white;
- *   background: #111827;
- *   padding: 12px 16px;
- *   border-radius: 12px;
- * `;
+ * ---------------------------------------------------------------------------
+ * CORE
+ * ---------------------------------------------------------------------------
  *
- * Output class:
+ * css`...`
+ * injectGlobal`...`
+ * theme({...})
+ * configure({...})
  *
- * "cipo-a-xxxxx cipo-a-yyyyy cipo-a-zzzzz cipo-a-wwwww"
+ * ---------------------------------------------------------------------------
+ * ATOMIC CSS
+ * ---------------------------------------------------------------------------
  *
- * Output CSS:
+ * css`
+ *   color: red;
+ *   background: black;
+ *   padding: 16px;
+ * `
  *
- * .cipo-a-xxxxx{color:white;}
- * .cipo-a-yyyyy{background:#111827;}
- * .cipo-a-zzzzz{padding:12px 16px;}
- * .cipo-a-wwwww{border-radius:12px;}
+ * ---------------------------------------------------------------------------
+ * RESPONSIVE VALUES
+ * ---------------------------------------------------------------------------
  *
- * ----------------------------------------------------------------------------
+ * css`
+ *   width: x:sm(100%);
+ *   width: x:md(768px);
+ *   width: x:lg(1024px);
+ * `
  *
- * 2. Configure runtime
+ * css`
+ *   font-size:
+ *     x:sm(12px),
+ *     x:md(14px),
+ *     x:lg(16px);
+ * `
  *
- * configure({
- *   prefix: "rod",
- *   debug: false,
- *   important: true,
- *   adapter: "solid",
- *   darkSelector: ".dark",
- *   themeRootSelector: ":root",
- *   breakpoints: {
- *     md: "(min-width: 768px)",
- *   },
- * });
+ * ---------------------------------------------------------------------------
+ * RESPONSIVE BLOCKS
+ * ---------------------------------------------------------------------------
  *
- * Output CSS when important is true:
+ * css`
+ *   x:sm {
+ *     color: red;
+ *   }
  *
- * .rod-a-xxxxx{color:white !important;}
+ *   x:md {
+ *     color: blue;
+ *   }
  *
- * ----------------------------------------------------------------------------
+ *   x:lg {
+ *     color: green;
+ *   }
+ * `
  *
- * 3. Theme tokens and shorthand variables
+ * ---------------------------------------------------------------------------
+ * NEGATED BREAKPOINTS
+ * ---------------------------------------------------------------------------
+ *
+ * css`
+ *   x:not(md) {
+ *     display: none;
+ *   }
+ * `
+ *
+ * ---------------------------------------------------------------------------
+ * DARK MODE
+ * ---------------------------------------------------------------------------
+ *
+ * css`
+ *   x:dark {
+ *     color: white;
+ *     bg: black;
+ *   }
+ * `
+ *
+ * ---------------------------------------------------------------------------
+ * PSEUDOS
+ * ---------------------------------------------------------------------------
+ *
+ * css`
+ *   x:hover {
+ *     opacity: .8;
+ *   }
+ *
+ *   x:focus {
+ *     outline: none;
+ *   }
+ *
+ *   x:active {}
+ *   x:visited {}
+ *   x:checked {}
+ *   x:disabled {}
+ *   x:focus-visible {}
+ *   x:focus-within {}
+ * `
+ *
+ * ---------------------------------------------------------------------------
+ * SCOPED SELECTORS
+ * ---------------------------------------------------------------------------
+ *
+ * css`
+ *   li {
+ *     list-style: none;
+ *   }
+ *
+ *   button {}
+ *
+ *   svg {}
+ *
+ *   &:hover {}
+ *
+ *   &::before {}
+ *
+ *   & > div {}
+ *
+ *   & + div {}
+ * `
+ *
+ * ---------------------------------------------------------------------------
+ * THEME TOKENS
+ * ---------------------------------------------------------------------------
  *
  * theme({
  *   colors: {
- *     brand: "#22c55e",
+ *     brand: "#3b82f6",
  *   },
  *   spacing: "0.25rem",
- *   radius: {
- *     xl: "18px",
- *   },
  * });
  *
- * const card = css`
+ * css`
  *   color: $theme.colors.brand;
- *   padding: calc($spacing * 4);
- *   border-radius: $radius-xl;
- * `;
+ *   gap: x:spacing(4);
+ * `
  *
- * Output CSS:
+ * ---------------------------------------------------------------------------
+ * UTILITIES
+ * ---------------------------------------------------------------------------
  *
- * :root{--cipo-colors-brand:#22c55e;--cipo-spacing:0.25rem;--cipo-radius-xl:18px;}
- * .cipo-a-xxxxx{color:var(--cipo-colors-brand);}
- * .cipo-a-yyyyy{padding:calc(var(--cipo-spacing) * 4);}
- * .cipo-a-zzzzz{border-radius:var(--cipo-radius-xl);}
- *
- * Note:
- * $spacing and $radius-xl are replaced only when they were registered by
- * theme() or already exist as CSS variables with the configured prefix.
- * Unknown variables are left untouched.
- *
- * ----------------------------------------------------------------------------
- *
- * 4. Global CSS injection
- *
- * injectGlobal`
- *   *, *::before, *::after {
- *     box-sizing: border-box;
- *   }
- *
- *   body {
- *     margin: 0;
- *     background: $theme.colors.brand;
- *   }
- * `;
- *
- * Output CSS:
- *
- * *, *::before, *::after{box-sizing:border-box;}
- * body{margin:0;background:var(--cipo-colors-brand);}
- *
- * ----------------------------------------------------------------------------
- *
- * 5. Global CSS injection with local important mode
- *
- * injectGlobal(
- *   { important: true },
- *   `
- *     body {
- *       margin: 0;
- *       color: white;
- *     }
- *   `,
- * );
- *
- * Output CSS:
- *
- * body{margin:0 !important;color:white !important;}
- *
- * ----------------------------------------------------------------------------
- *
- * 6. Utility directive
- *
- * const card = css`
+ * css`
  *   @with(
- *     bg(#111827),
- *     color(white),
- *     px(16px),
- *     py(12px),
- *     rounded(18px),
- *     shadow(0 24px 80px rgb(0 0 0 / 0.2))
+ *     hidden,
+ *     block,
+ *     flex,
+ *     inline-flex,
+ *     grid,
+ *     center,
+ *     items-center,
+ *     justify-center
+ *   );
+ * `
+ *
+ * ---------------------------------------------------------------------------
+ * SPACING
+ * ---------------------------------------------------------------------------
+ *
+ * css`
+ *   p(16px);
+ *   px(16px);
+ *   py(16px);
+ *
+ *   m(16px);
+ *   mx(16px);
+ *   my(16px);
+ *
+ *   pt(16px);
+ *   pr(16px);
+ *   pb(16px);
+ *   pl(16px);
+ *
+ *   mt(16px);
+ *   mr(16px);
+ *   mb(16px);
+ *   ml(16px);
+ * `
+ *
+ * ---------------------------------------------------------------------------
+ * SIZE
+ * ---------------------------------------------------------------------------
+ *
+ * css`
+ *   w(100%);
+ *   h(50px);
+ *
+ *   size(48px);
+ *
+ *   x:size(64px);
+ * `
+ *
+ * ---------------------------------------------------------------------------
+ * BORDER
+ * ---------------------------------------------------------------------------
+ *
+ * css`
+ *   rounded(12px);
+ *
+ *   rounded(sm);
+ *   rounded(md);
+ *   rounded(lg);
+ *   rounded(xl);
+ *
+ *   border(red);
+ *   border(1px solid red);
+ * `
+ *
+ * ---------------------------------------------------------------------------
+ * COLORS
+ * ---------------------------------------------------------------------------
+ *
+ * css`
+ *   bg(red);
+ *   bg(#ff0000);
+ *
+ *   color(white);
+ *
+ *   color:
+ *     x:alpha(red / 50%);
+ * `
+ *
+ * ---------------------------------------------------------------------------
+ * COLOR HELPERS
+ * ---------------------------------------------------------------------------
+ *
+ * css`
+ *   color:
+ *     x:alpha(red / 50%);
+ *
+ *   color:
+ *     x:lighten(red, 20%);
+ *
+ *   color:
+ *     x:darken(red, 20%);
+ *
+ *   color:
+ *     x:saturate(red, 20%);
+ *
+ *   color:
+ *     x:desaturate(red, 20%);
+ *
+ *   color:
+ *     x:mix(red, blue, 50%);
+ * `
+ *
+ * ---------------------------------------------------------------------------
+ * TEXT
+ * ---------------------------------------------------------------------------
+ *
+ * css`
+ *   text(
+ *     size: sm,
+ *     lh: 2,
+ *     color: red
+ *   );
+ * `
+ *
+ * css`
+ *   text(
+ *     size: lg,
+ *     lh: 1.5,
+ *     weight: 700,
+ *     align: center,
+ *     transform: uppercase,
+ *     decoration: underline,
+ *     shadow: 0 2px 4px rgb(0 0 0 / .2)
+ *   );
+ * `
+ *
+ * ---------------------------------------------------------------------------
+ * GRADIENTS
+ * ---------------------------------------------------------------------------
+ *
+ * css`
+ *   bg(
+ *     gradient(
+ *       linear,
+ *       red,
+ *       blue
+ *     )
+ *   );
+ * `
+ *
+ * css`
+ *   bg(
+ *     gradient(
+ *       radial,
+ *       white,
+ *       black
+ *     )
+ *   );
+ * `
+ *
+ * ---------------------------------------------------------------------------
+ * FLUID VALUES
+ * ---------------------------------------------------------------------------
+ *
+ * css`
+ *   font-size:
+ *     x:fluid(
+ *       1rem,
+ *       2rem,
+ *       4vw
+ *     );
+ * `
+ *
+ * ---------------------------------------------------------------------------
+ * REM AUTO CONVERSION
+ * ---------------------------------------------------------------------------
+ *
+ * configure({
+ *   rem: true,
+ *   remBase: 16,
+ * });
+ *
+ * 16px -> 1rem
+ * 32px -> 2rem
+ * 48px -> 3rem
+ *
+ * ---------------------------------------------------------------------------
+ * INLINE STYLE DSL
+ * ---------------------------------------------------------------------------
+ *
+ * element.style.css = css.inline`
+ *   px: 2;
+ *
+ *   color:
+ *     x:saturate(
+ *       $theme.colors.primary,
+ *       100%
+ *     );
+ *
+ *   bg:
+ *     x:lighten(
+ *       $theme.colors.brand,
+ *       20%
+ *     );
+ *
+ *   text(
+ *     size: sm,
+ *     lh: 2,
+ *     color: red
  *   );
  * `;
  *
- * Output CSS:
+ * ---------------------------------------------------------------------------
+ * INLINE OBJECT DSL
+ * ---------------------------------------------------------------------------
  *
- * .cipo-a-xxxxx{background:#111827;}
- * .cipo-a-yyyyy{color:white;}
- * .cipo-a-zzzzz{padding-inline:16px;}
- * .cipo-a-wwwww{padding-block:12px;}
- * .cipo-a-vvvvv{border-radius:18px;}
- * .cipo-a-uuuuu{box-shadow:0 24px 80px rgb(0 0 0 / 0.2);}
- *
- * ----------------------------------------------------------------------------
- *
- * 7. Helpers
- *
- * const fluid = css`
- *   font-size: x:fluid(1.25rem, 3rem, 4vw);
- *   gap: x:spacing(4);
- *   x:size(48px);
- *   background: x:alpha($theme.colors.brand / 18%);
- * `;
- *
- * Output CSS:
- *
- * .cipo-a-xxxxx{font-size:clamp(1.25rem,4vw,3rem);}
- * .cipo-a-yyyyy{gap:calc(var(--cipo-spacing) * 4);}
- * .cipo-a-zzzzz{width:48px;}
- * .cipo-a-wwwww{height:48px;}
- * .cipo-a-vvvvv{background:color-mix(in oklab,var(--cipo-colors-brand) 18%,transparent);}
- *
- * ----------------------------------------------------------------------------
- *
- * 8. Responsive block
- *
- * const panel = css`
- *   width: 100%;
- *
- *   x:md {
- *     width: 720px;
- *   }
- * `;
- *
- * Output CSS:
- *
- * .cipo-a-xxxxx{width:100%;}
- * @media (min-width: 768px){.cipo-a-yyyyy{width:720px;}}
- *
- * ----------------------------------------------------------------------------
- *
- * 9. Inverted responsive block
- *
- * const mobileOnly = css`
- *   display: block;
- *
- *   x:not(md) {
- *     font-size: 14px;
- *   }
- * `;
- *
- * Output CSS:
- *
- * .cipo-a-xxxxx{display:block;}
- * @media not all and (min-width: 768px){.cipo-a-yyyyy{font-size:14px;}}
- *
- * ----------------------------------------------------------------------------
- *
- * 10. Dark mode block
- *
- * const surface = css`
- *   background: white;
- *   color: black;
- *
- *   x:dark {
- *     background: #020617;
- *     color: white;
- *   }
- * `;
- *
- * Output CSS:
- *
- * .cipo-a-xxxxx{background:white;}
- * .cipo-a-yyyyy{color:black;}
- * [data-theme="dark"] .cipo-a-zzzzz{background:#020617;}
- * [data-theme="dark"] .cipo-a-wwwww{color:white;}
- *
- * ----------------------------------------------------------------------------
- *
- * 11. Pseudo block
- *
- * const link = css`
- *   color: #38bdf8;
- *
- *   x:hover {
- *     color: #7dd3fc;
- *   }
- * `;
- *
- * Output CSS:
- *
- * .cipo-a-xxxxx{color:#38bdf8;}
- * .cipo-a-yyyyy:hover{color:#7dd3fc;}
- *
- * ----------------------------------------------------------------------------
- *
- * 12. Scoped selectors
- *
- * const list = css`
- *   padding: 0;
- *
- *   li {
- *     list-style: none;
- *     padding: 8px;
- *   }
- *
- *   &:hover {
- *     opacity: 0.92;
- *   }
- * `;
- *
- * Output class:
- *
- * "cipo-s-xxxxx cipo-a-yyyyy"
- *
- * Output CSS:
- *
- * .cipo-a-yyyyy{padding:0;}
- * .cipo-s-xxxxx li{list-style:none;padding:8px;}
- * .cipo-s-xxxxx:hover{opacity:0.92;}
- *
- * ----------------------------------------------------------------------------
- *
- * 13. DOM element API
- *
- * const element = document.createElement("div");
- *
- * const styled = cipo(element).css`
- *   color: red;
- *   padding: $spacing;
- * `;
- *
- * Output:
- *
- * styled.element === element
- * element.className includes generated classes
- *
- * ----------------------------------------------------------------------------
- *
- * 14. DOM tag factory API
- *
- * configure({ adapter: "dom" });
- *
- * const Card = cipo.div.css`
- *   padding: 16px;
- *   background: white;
- * `;
- *
- * const element = Card({
- *   class: "extra",
- *   children: "Hello",
+ * css.inline({
+ *   px: 2,
+ *   color: "$theme.colors.primary",
  * });
  *
- * Output DOM:
+ * ---------------------------------------------------------------------------
+ * CSS LAYERS
+ * ---------------------------------------------------------------------------
  *
- * <div class="cipo-a-xxxxx cipo-a-yyyyy extra">Hello</div>
+ * @layer reset
+ * @layer tokens
+ * @layer base
+ * @layer components
+ * @layer utilities
+ * @layer overrides
  *
- * ----------------------------------------------------------------------------
+ * ---------------------------------------------------------------------------
+ * GLOBAL CSS
+ * ---------------------------------------------------------------------------
  *
- * 15. Framework component API
- *
- * configure({ adapter: "react" });
- *
- * const Button = cipo.button.css`
- *   color: white;
- *   background: black;
- * `;
- *
- * Output props for React or Preact:
- *
- * { className: "cipo-a-xxxxx cipo-a-yyyyy ..." }
- *
- * configure({ adapter: "solid" });
- *
- * Output props for Solid:
- *
- * { class: "cipo-a-xxxxx cipo-a-yyyyy ..." }
- *
- * ----------------------------------------------------------------------------
- *
- * 16. Component wrapper API
- *
- * const StyledComponent = cipo(MyComponent).css`
- *   color: red;
- * `;
- *
- * const ReactOnly = cipo(MyComponent, { adapter: "react" }).css`
- *   color: blue;
- * `;
- *
- * const SolidOnly = cipo(MyComponent, { adapter: "solid" }).css`
- *   color: green;
- * `;
- *
- * ----------------------------------------------------------------------------
- *
- * 17. Browser globals
- *
- * window.Cipo.css`
- *   color: red;
- * `;
- *
- * window.Cipo.cipo.div.css`
- *   color: blue;
- * `;
- *
- * window.Cipo.injectGlobal`
+ * injectGlobal`
  *   body {
  *     margin: 0;
  *   }
+ * `
+ *
+ * ---------------------------------------------------------------------------
+ * DOM API
+ * ---------------------------------------------------------------------------
+ *
+ * cipo.div.css`...`
+ *
+ * cipo.button.css`...`
+ *
+ * cipo.section.css`...`
+ *
+ * ---------------------------------------------------------------------------
+ * COMPONENT API
+ * ---------------------------------------------------------------------------
+ *
+ * cipo(MyComponent).css`...`
+ *
+ * ---------------------------------------------------------------------------
+ * INLINE STRING INTERPOLATION
+ * ---------------------------------------------------------------------------
+ *
+ * const card = css`
+ *   color: red;
  * `;
  *
- * window.RodK points to the same API by default.
+ * html`
+ *   <div class="${card}">
+ * `
  *
+ * String(card)
+ *
+ * `${card}`
+ *
+ * card.toString()
+ *
+ * ---------------------------------------------------------------------------
+ * DEBUG
+ * ---------------------------------------------------------------------------
+ *
+ * explain(className)
+ *
+ * getCssText()
+ *
+ * reset()
+ *
+ * ---------------------------------------------------------------------------
+ * OUTPUT MODES
+ * ---------------------------------------------------------------------------
+ *
+ * configure({
+ *   pretty: true,
+ * });
+ *
+ * configure({
+ *   minify: true,
+ * });
+ *
+ * ============================================================================
+ */
+ *
+ * This file intentionally keeps the public API from the previous implementation:
+ *
+ * - configure()
+ * - css``
+ * - html``
+ * - theme()
+ * - injectGlobal``
+ * - explain()
+ * - getCssText()
+ * - reset()
+ * - cipo(element).css``
+ * - cipo.div.css``
+ * - cipo(Component).css``
+ * - browser globals: window.Cipo and window.RodK
+ *
+ * And adds the new features discussed for 1.0.0:
+ *
+ * - setup(), as an ergonomic alias for configure().
+ * - Pretty CSS output by default, with minify: true opt-in.
+ * - Cascade layers by default.
+ * - REM conversion by default, configurable with rem.enabled/baseFontSize.
+ * - Color helper output mode configuration.
+ * - inline.css`` for style="..." output with the same compiler features.
+ * - Data-driven property aliases inspired by Tailwind coverage, without adopting
+ *   Tailwind class-authoring as the public API.
+ * - text(...) helper with size, line-height, color, decoration, shadow, tracking,
+ *   weight, align, transform, wrap, underline and gradient fill support.
+ * - CSS helpers: spacing(), fluid(), alpha(), lighten(), darken(), saturate(),
+ *   gradient(), rem(), size(). The x: prefix remains supported.
+ * - Shadow/local style injection through injectStyle().
+ *
+ * The code is a single-file runtime on purpose. Sections are kept large and
+ * explicit to make extraction into modules easy later.
  * ============================================================================
  */
 
@@ -355,127 +476,32 @@
  * Constants
  * ========================================================================== */
 
-const STYLE_ELEMENT_ID = "cipo-runtime-style";
+const STYLE_ELEMENT_ID = 'cipo-runtime-style';
 const HASH_SEED = 5381;
 const HASH_MASK = 0xffffffff;
-const DEFAULT_PREFIX = "cipo";
-const EMPTY_STRING = "";
-const CLASS_PROP = "class";
-const CLASS_NAME_PROP = "className";
-const CHILDREN_PROP = "children";
+const DEFAULT_PREFIX = 'cipo';
+const EMPTY_STRING = '';
+const CLASS_PROP = 'class';
+const CLASS_NAME_PROP = 'className';
+const CHILDREN_PROP = 'children';
+const DEFAULT_BASE_FONT_SIZE = 16;
+const DEFAULT_SPACING_VALUE = '0.25rem';
+const DEFAULT_LAYER_DECLARATION = '@layer cipo.reset, cipo.tokens, cipo.base, cipo.atomic, cipo.scoped, cipo.global, cipo.inline;';
 
 const HTML_TAGS = [
-  "a",
-  "abbr",
-  "address",
-  "area",
-  "article",
-  "aside",
-  "audio",
-  "b",
-  "base",
-  "bdi",
-  "bdo",
-  "blockquote",
-  "body",
-  "br",
-  "button",
-  "canvas",
-  "caption",
-  "cite",
-  "code",
-  "col",
-  "colgroup",
-  "data",
-  "datalist",
-  "dd",
-  "del",
-  "details",
-  "dfn",
-  "dialog",
-  "div",
-  "dl",
-  "dt",
-  "em",
-  "embed",
-  "fieldset",
-  "figcaption",
-  "figure",
-  "footer",
-  "form",
-  "h1",
-  "h2",
-  "h3",
-  "h4",
-  "h5",
-  "h6",
-  "head",
-  "header",
-  "hgroup",
-  "hr",
-  "html",
-  "i",
-  "iframe",
-  "img",
-  "input",
-  "ins",
-  "kbd",
-  "label",
-  "legend",
-  "li",
-  "link",
-  "main",
-  "map",
-  "mark",
-  "menu",
-  "meta",
-  "meter",
-  "nav",
-  "noscript",
-  "object",
-  "ol",
-  "optgroup",
-  "option",
-  "output",
-  "p",
-  "picture",
-  "pre",
-  "progress",
-  "q",
-  "rp",
-  "rt",
-  "ruby",
-  "s",
-  "samp",
-  "script",
-  "section",
-  "select",
-  "slot",
-  "small",
-  "source",
-  "span",
-  "strong",
-  "style",
-  "sub",
-  "summary",
-  "sup",
-  "table",
-  "tbody",
-  "td",
-  "template",
-  "textarea",
-  "tfoot",
-  "th",
-  "thead",
-  "time",
-  "title",
-  "tr",
-  "track",
-  "u",
-  "ul",
-  "var",
-  "video",
-  "wbr",
+  'a', 'abbr', 'address', 'area', 'article', 'aside', 'audio', 'b', 'base',
+  'bdi', 'bdo', 'blockquote', 'body', 'br', 'button', 'canvas', 'caption',
+  'cite', 'code', 'col', 'colgroup', 'data', 'datalist', 'dd', 'del',
+  'details', 'dfn', 'dialog', 'div', 'dl', 'dt', 'em', 'embed', 'fieldset',
+  'figcaption', 'figure', 'footer', 'form', 'h1', 'h2', 'h3', 'h4', 'h5',
+  'h6', 'head', 'header', 'hgroup', 'hr', 'html', 'i', 'iframe', 'img',
+  'input', 'ins', 'kbd', 'label', 'legend', 'li', 'link', 'main', 'map',
+  'mark', 'menu', 'meta', 'meter', 'nav', 'noscript', 'object', 'ol',
+  'optgroup', 'option', 'output', 'p', 'picture', 'pre', 'progress', 'q',
+  'rp', 'rt', 'ruby', 's', 'samp', 'script', 'section', 'select', 'slot',
+  'small', 'source', 'span', 'strong', 'style', 'sub', 'summary', 'sup',
+  'table', 'tbody', 'td', 'template', 'textarea', 'tfoot', 'th', 'thead',
+  'time', 'title', 'tr', 'track', 'u', 'ul', 'var', 'video', 'wbr',
 ] as const;
 
 /* ============================================================================
@@ -483,53 +509,41 @@ const HTML_TAGS = [
  * ========================================================================== */
 
 export type CipoPrimitive = string | number | boolean | null | undefined;
-
-export type CipoAdapterName = "dom" | "solid" | "react" | "preact";
-
-export type CipoComponent<P extends CipoAnyRecord = CipoAnyRecord> = (
-  props: P,
-) => unknown;
-
-export type CipoTarget =
-  | Element
-  | string
-  | CipoComponent
-  | ((...args: never[]) => unknown);
-
-export type CipoCssInterpolation =
-  | CipoPrimitive
-  | CipoCssArtifact
-  | CipoStyleObject;
-
+export type CipoAdapterName = 'dom' | 'solid' | 'react' | 'preact';
 export type CipoHtmlTagName = (typeof HTML_TAGS)[number];
-
 export type CipoAnyRecord = Record<string, unknown>;
+export type CipoColorMode = 'oklch' | 'oklab' | 'hsl' | 'rgba' | 'preserve';
+export type CipoLayerName = 'reset' | 'tokens' | 'base' | 'atomic' | 'scoped' | 'global' | 'inline';
+
+export type CipoComponent<Props extends CipoAnyRecord = CipoAnyRecord> = (props: Props) => unknown;
+export type CipoTarget = Element | string | CipoComponent | ((...args: never[]) => unknown);
+export type CipoCssInterpolation = CipoPrimitive | CipoCssArtifact | CipoInlineCssArtifact | CipoStyleObject;
 
 export interface CipoStyleObject {
-  readonly [property: string]:
-    | string
-    | number
-    | CipoStyleObject
-    | null
-    | undefined;
+  readonly [property: string]: string | number | CipoStyleObject | null | undefined;
 }
 
 export interface CipoAdapter {
   readonly name?: string;
-  readonly classProp: "class" | "className";
-  mergeProps(
-    props: CipoAnyRecord | null | undefined,
-    className: string,
-  ): CipoAnyRecord;
-  createElement?(
-    tag: string,
-    props: CipoAnyRecord | null | undefined,
-    className: string,
-  ): unknown;
-  wrapComponent?(
-    component: unknown,
-    className: string,
-  ): CipoComponent;
+  readonly classProp: 'class' | 'className';
+  mergeProps(props: CipoAnyRecord | null | undefined, className: string): CipoAnyRecord;
+  createElement?(tag: string, props: CipoAnyRecord | null | undefined, className: string): unknown;
+  wrapComponent?(component: unknown, className: string): CipoComponent;
+}
+
+export interface CipoRemConfig {
+  readonly enabled?: boolean;
+  readonly baseFontSize?: number;
+}
+
+export interface CipoColorConfig {
+  readonly mode?: CipoColorMode;
+}
+
+export interface CipoOutputConfig {
+  readonly minify?: boolean;
+  readonly layers?: boolean;
+  readonly pretty?: boolean;
 }
 
 export interface CipoRuntimeConfig {
@@ -541,6 +555,13 @@ export interface CipoRuntimeConfig {
   readonly breakpoints?: Readonly<Record<string, string | null>>;
   readonly themeRootSelector?: string;
   readonly onWarning?: (warning: CipoWarning) => void;
+  readonly minify?: boolean;
+  readonly layers?: boolean;
+  readonly rem?: boolean | CipoRemConfig;
+  readonly baseFontSize?: number;
+  readonly colorMode?: CipoColorMode;
+  readonly color?: CipoColorConfig;
+  readonly output?: CipoOutputConfig;
 }
 
 export interface CipoTargetOptions {
@@ -549,6 +570,13 @@ export interface CipoTargetOptions {
 
 export interface CipoInjectGlobalOptions {
   readonly important?: boolean;
+  readonly layer?: CipoLayerName | false;
+}
+
+export interface CipoInjectStyleOptions {
+  readonly nonce?: string;
+  readonly dedupe?: boolean;
+  readonly position?: 'append' | 'prepend';
 }
 
 export interface CipoWarning {
@@ -585,7 +613,7 @@ export interface CipoRuleContext {
 }
 
 export interface CipoCssArtifact {
-  readonly kind: "cipo.css";
+  readonly kind: 'cipo.css';
   readonly className: string;
   readonly scopeClassName: string;
   readonly atoms: readonly CipoAtomicRule[];
@@ -594,6 +622,16 @@ export interface CipoCssArtifact {
   readonly transformedCss: string;
   readonly compiledCss: string;
   readonly debug: CipoDebugArtifact;
+  toString(): string;
+  [Symbol.toPrimitive](): string;
+  readonly [Symbol.toStringTag]: string;
+}
+
+export interface CipoInlineCssArtifact {
+  readonly kind: 'cipo.inline-css';
+  readonly rawCss: string;
+  readonly transformedCss: string;
+  readonly cssText: string;
   toString(): string;
   [Symbol.toPrimitive](): string;
   readonly [Symbol.toStringTag]: string;
@@ -614,45 +652,33 @@ export interface CipoExplainResult {
   readonly found: boolean;
 }
 
-export interface CipoDomStyledResult<E extends Element = Element> {
-  readonly element: E;
+export interface CipoDomStyledResult<ElementType extends Element = Element> {
+  readonly element: ElementType;
   readonly artifact: CipoCssArtifact;
   readonly className: string;
 }
 
-export interface CipoStyledBuilder<T = unknown> {
-  css(
-    strings: TemplateStringsArray,
-    ...values: readonly CipoCssInterpolation[]
-  ): T;
+export interface CipoStyledBuilder<ResultType = unknown> {
+  css(strings: TemplateStringsArray, ...values: readonly CipoCssInterpolation[]): ResultType;
 }
 
 export interface CipoStyledTagFactory {
-  css(
-    strings: TemplateStringsArray,
-    ...values: readonly CipoCssInterpolation[]
-  ): CipoComponent;
+  css(strings: TemplateStringsArray, ...values: readonly CipoCssInterpolation[]): CipoComponent;
   attrs(defaultProps: CipoAnyRecord): CipoStyledTagFactory;
 }
 
 export interface CipoCallable {
-  <E extends Element>(
-    target: E,
-    options?: CipoTargetOptions,
-  ): CipoStyledBuilder<CipoDomStyledResult<E>>;
-  <P extends CipoAnyRecord>(
-    target: CipoComponent<P>,
-    options?: CipoTargetOptions,
-  ): CipoStyledBuilder<CipoComponent<P>>;
-  (
-    target: string,
-    options?: CipoTargetOptions,
-  ): CipoStyledTagFactory;
+  <ElementType extends Element>(target: ElementType, options?: CipoTargetOptions): CipoStyledBuilder<CipoDomStyledResult<ElementType>>;
+  <Props extends CipoAnyRecord>(target: CipoComponent<Props>, options?: CipoTargetOptions): CipoStyledBuilder<CipoComponent<Props>>;
+  (target: string, options?: CipoTargetOptions): CipoStyledTagFactory;
   css: typeof css;
   html: typeof html;
   theme: typeof theme;
   configure: typeof configure;
+  setup: typeof setup;
+  inline: typeof inline;
   injectGlobal: typeof injectGlobal;
+  injectStyle: typeof injectStyle;
   explain: typeof explain;
   getCssText: typeof getCssText;
   reset: typeof reset;
@@ -663,10 +689,13 @@ export interface CipoCallable {
 export interface CipoBrowserGlobal {
   readonly cipo: CipoCallable;
   readonly configure: typeof configure;
+  readonly setup: typeof setup;
   readonly theme: typeof theme;
   readonly css: typeof css;
+  readonly inline: typeof inline;
   readonly html: typeof html;
   readonly injectGlobal: typeof injectGlobal;
+  readonly injectStyle: typeof injectStyle;
   readonly explain: typeof explain;
   readonly getCssText: typeof getCssText;
   readonly reset: typeof reset;
@@ -674,27 +703,24 @@ export interface CipoBrowserGlobal {
   readonly installBrowserGlobal: typeof installBrowserGlobal;
 }
 
-export type CipoAstNode =
-  | CipoDeclarationNode
-  | CipoBlockNode
-  | CipoDirectiveNode;
+export type CipoAstNode = CipoDeclarationNode | CipoBlockNode | CipoDirectiveNode;
 
 export interface CipoDeclarationNode {
-  readonly type: "declaration";
+  readonly type: 'declaration';
   readonly property: string;
   readonly value: string;
   readonly source: string;
 }
 
 export interface CipoBlockNode {
-  readonly type: "block";
+  readonly type: 'block';
   readonly name: string;
   readonly body: readonly CipoAstNode[];
   readonly source: string;
 }
 
 export interface CipoDirectiveNode {
-  readonly type: "directive";
+  readonly type: 'directive';
   readonly name: string;
   readonly args: readonly string[];
   readonly source: string;
@@ -710,6 +736,10 @@ interface CipoRuntimeState {
     themeRootSelector: string;
     breakpoints: Readonly<Record<string, string | null>>;
     onWarning?: (warning: CipoWarning) => void;
+    minify: boolean;
+    layers: boolean;
+    rem: Required<CipoRemConfig>;
+    colorMode: CipoColorMode;
   };
   sheet: CSSStyleSheet | null;
   insertedCss: Set<string>;
@@ -717,6 +747,7 @@ interface CipoRuntimeState {
   debugAtoms: Map<string, CipoAtomicRule>;
   themeKeys: Set<string>;
   warningSink: CipoWarning[];
+  layerHeaderInserted: boolean;
 }
 
 declare global {
@@ -727,11 +758,11 @@ declare global {
 }
 
 /* ============================================================================
- * Runtime State
+ * Adapters
  * ========================================================================== */
 
 const DOM_ADAPTER: CipoAdapter = {
-  name: "dom",
+  name: 'dom',
   classProp: CLASS_PROP,
   mergeProps(props, className) {
     return mergeClassIntoProps(props, CLASS_PROP, className);
@@ -745,7 +776,7 @@ const DOM_ADAPTER: CipoAdapter = {
 };
 
 const SOLID_ADAPTER: CipoAdapter = {
-  name: "solid",
+  name: 'solid',
   classProp: CLASS_PROP,
   mergeProps(props, className) {
     return mergeClassIntoProps(props, CLASS_PROP, className);
@@ -756,7 +787,7 @@ const SOLID_ADAPTER: CipoAdapter = {
 };
 
 const REACT_ADAPTER: CipoAdapter = {
-  name: "react",
+  name: 'react',
   classProp: CLASS_NAME_PROP,
   mergeProps(props, className) {
     return mergeClassIntoProps(props, CLASS_NAME_PROP, className);
@@ -767,7 +798,7 @@ const REACT_ADAPTER: CipoAdapter = {
 };
 
 const PREACT_ADAPTER: CipoAdapter = {
-  name: "preact",
+  name: 'preact',
   classProp: CLASS_NAME_PROP,
   mergeProps(props, className) {
     return mergeClassIntoProps(props, CLASS_NAME_PROP, className);
@@ -777,23 +808,34 @@ const PREACT_ADAPTER: CipoAdapter = {
   },
 };
 
+/* ============================================================================
+ * Runtime State
+ * ========================================================================== */
+
 const runtime: CipoRuntimeState = {
   config: {
     prefix: DEFAULT_PREFIX,
     debug: true,
     important: false,
-    adapter: "dom",
+    adapter: 'dom',
     darkSelector: '[data-theme="dark"]',
-    themeRootSelector: ":root",
+    themeRootSelector: ':root',
     breakpoints: {
       base: null,
       sm: null,
-      md: "(min-width: 768px)",
-      lg: "(min-width: 1024px)",
-      xl: "(min-width: 1280px)",
-      "2xl": "(min-width: 1536px)",
+      md: '(min-width: 768px)',
+      lg: '(min-width: 1024px)',
+      xl: '(min-width: 1280px)',
+      '2xl': '(min-width: 1536px)',
     },
     onWarning: undefined,
+    minify: false,
+    layers: true,
+    rem: {
+      enabled: true,
+      baseFontSize: DEFAULT_BASE_FONT_SIZE,
+    },
+    colorMode: 'oklch',
   },
   sheet: null,
   insertedCss: new Set<string>(),
@@ -801,13 +843,94 @@ const runtime: CipoRuntimeState = {
   debugAtoms: new Map<string, CipoAtomicRule>(),
   themeKeys: new Set<string>(),
   warningSink: [],
+  layerHeaderInserted: false,
 };
+
+/* ============================================================================
+ * Data Driven Alias Tables
+ * ========================================================================== */
+
+type AliasScale = 'spacing' | 'radius' | 'shadow' | 'text' | 'color' | 'none';
+
+interface PropertyAliasDefinition {
+  readonly property: string;
+  readonly scale: AliasScale;
+}
+
+const PROPERTY_ALIASES: Record<string, PropertyAliasDefinition> = {
+  p: { property: 'padding', scale: 'spacing' },
+  px: { property: 'padding-inline', scale: 'spacing' },
+  py: { property: 'padding-block', scale: 'spacing' },
+  ps: { property: 'padding-inline-start', scale: 'spacing' },
+  pe: { property: 'padding-inline-end', scale: 'spacing' },
+  pt: { property: 'padding-top', scale: 'spacing' },
+  pr: { property: 'padding-right', scale: 'spacing' },
+  pb: { property: 'padding-bottom', scale: 'spacing' },
+  pl: { property: 'padding-left', scale: 'spacing' },
+  m: { property: 'margin', scale: 'spacing' },
+  mx: { property: 'margin-inline', scale: 'spacing' },
+  my: { property: 'margin-block', scale: 'spacing' },
+  ms: { property: 'margin-inline-start', scale: 'spacing' },
+  me: { property: 'margin-inline-end', scale: 'spacing' },
+  mt: { property: 'margin-top', scale: 'spacing' },
+  mr: { property: 'margin-right', scale: 'spacing' },
+  mb: { property: 'margin-bottom', scale: 'spacing' },
+  ml: { property: 'margin-left', scale: 'spacing' },
+  gap: { property: 'gap', scale: 'spacing' },
+  gapx: { property: 'column-gap', scale: 'spacing' },
+  gapy: { property: 'row-gap', scale: 'spacing' },
+  w: { property: 'width', scale: 'spacing' },
+  h: { property: 'height', scale: 'spacing' },
+  minw: { property: 'min-width', scale: 'spacing' },
+  minh: { property: 'min-height', scale: 'spacing' },
+  maxw: { property: 'max-width', scale: 'spacing' },
+  maxh: { property: 'max-height', scale: 'spacing' },
+  bg: { property: 'background', scale: 'color' },
+  bgColor: { property: 'background-color', scale: 'color' },
+  'bg-color': { property: 'background-color', scale: 'color' },
+  color: { property: 'color', scale: 'color' },
+  fill: { property: 'fill', scale: 'color' },
+  stroke: { property: 'stroke', scale: 'color' },
+  rounded: { property: 'border-radius', scale: 'radius' },
+  radius: { property: 'border-radius', scale: 'radius' },
+  shadow: { property: 'box-shadow', scale: 'shadow' },
+  z: { property: 'z-index', scale: 'none' },
+  lh: { property: 'line-height', scale: 'none' },
+  leading: { property: 'line-height', scale: 'none' },
+  tracking: { property: 'letter-spacing', scale: 'none' },
+  opacity: { property: 'opacity', scale: 'none' },
+  flex: { property: 'flex', scale: 'none' },
+  grid: { property: 'grid-template-columns', scale: 'none' },
+  inset: { property: 'inset', scale: 'spacing' },
+  top: { property: 'top', scale: 'spacing' },
+  right: { property: 'right', scale: 'spacing' },
+  bottom: { property: 'bottom', scale: 'spacing' },
+  left: { property: 'left', scale: 'spacing' },
+};
+
+const TEXT_SIZE_TOKENS = new Set(['xs', 'sm', 'base', 'md', 'lg', 'xl', '2xl', '3xl', '4xl', '5xl', '6xl', '7xl', '8xl', '9xl']);
+const RADIUS_TOKENS = new Set(['none', 'xs', 'sm', 'md', 'lg', 'xl', '2xl', '3xl', 'full']);
+const SHADOW_TOKENS = new Set(['none', 'xs', 'sm', 'md', 'lg', 'xl', '2xl', 'inner']);
 
 /* ============================================================================
  * Public API
  * ========================================================================== */
 
+/**
+ * Configures the runtime while keeping the previous configure() API intact.
+ *
+ * @param config Runtime options.
+ * @returns Nothing.
+ *
+ * @example
+ * configure({ prefix: 'rod', important: true, adapter: 'solid' })
+ *
+ * @example
+ * configure({ minify: true, rem: { enabled: true, baseFontSize: 16 } })
+ */
 export function configure(config: CipoRuntimeConfig): void {
+  const remConfig = normalizeRemConfig(config.rem, config.baseFontSize);
+
   runtime.config = {
     prefix: config.prefix ?? runtime.config.prefix,
     debug: config.debug ?? runtime.config.debug,
@@ -820,9 +943,36 @@ export function configure(config: CipoRuntimeConfig): void {
       ...(config.breakpoints ?? {}),
     },
     onWarning: config.onWarning ?? runtime.config.onWarning,
+    minify: config.minify ?? config.output?.minify ?? runtime.config.minify,
+    layers: config.layers ?? config.output?.layers ?? runtime.config.layers,
+    rem: remConfig ?? runtime.config.rem,
+    colorMode: config.colorMode ?? config.color?.mode ?? runtime.config.colorMode,
   };
 }
 
+/**
+ * Friendly alias for configure(). It exists for the new 1.0 API while keeping
+ * configure() fully compatible.
+ *
+ * @param config Runtime options.
+ * @returns Nothing.
+ *
+ * @example
+ * setup({ minify: true, colorMode: 'hsl' })
+ */
+export function setup(config: CipoRuntimeConfig): void {
+  configure(config);
+}
+
+/**
+ * Registers theme tokens and makes shorthand variables available.
+ *
+ * @param tokens Theme object.
+ * @returns Nothing.
+ *
+ * @example
+ * theme({ colors: { brand: '#22c55e' }, spacing: '0.25rem' })
+ */
 export function theme(tokens: CipoThemeDefinition): void {
   const pairs = flattenTheme(tokens);
   let declarations = EMPTY_STRING;
@@ -830,32 +980,38 @@ export function theme(tokens: CipoThemeDefinition): void {
   for (let index = 0; index < pairs.length; index += 1) {
     const pair = pairs[index];
     const name = pair[0];
-    const value = pair[1];
+    const value = normalizeDeclarationValue('theme-token', String(pair[1]));
 
     runtime.themeKeys.add(name);
-    declarations += "--";
-    declarations += runtime.config.prefix;
-    declarations += "-";
-    declarations += name;
-    declarations += ":";
-    declarations += String(value);
-    declarations += ";";
+    declarations += createDeclaration('--' + runtime.config.prefix + '-' + name, value);
   }
 
-  insertCss(runtime.config.themeRootSelector + "{" + declarations + "}");
+  insertCss(wrapLayer('tokens', runtime.config.themeRootSelector + '{' + declarations + '}'));
 }
 
-export function css(
-  strings: TemplateStringsArray,
-  ...values: readonly CipoCssInterpolation[]
-): CipoCssArtifact {
+/**
+ * Main CSS tagged template. It preserves the old API and now also understands
+ * aliases, helpers, layers, REM conversion and pretty/minified output settings.
+ *
+ * @param strings Template strings.
+ * @param values Interpolated values.
+ * @returns CSS artifact whose string value is the generated class list.
+ *
+ * @example
+ * const card = css`px: 4; bg: $theme.colors.brand;`
+ */
+export function css(strings: TemplateStringsArray, ...values: readonly CipoCssInterpolation[]): CipoCssArtifact {
   return createCssArtifact(strings, values);
 }
 
-export function html(
-  strings: TemplateStringsArray,
-  ...values: readonly unknown[]
-): string {
+/**
+ * Minimal HTML tag kept for compatibility. Fábrica owns the real HTML runtime.
+ *
+ * @param strings Template strings.
+ * @param values Interpolated values.
+ * @returns HTML string.
+ */
+export function html(strings: TemplateStringsArray, ...values: readonly unknown[]): string {
   let output = EMPTY_STRING;
 
   for (let index = 0; index < strings.length; index += 1) {
@@ -870,30 +1026,55 @@ export function html(
   return output;
 }
 
-export function injectGlobal(
-  strings: TemplateStringsArray,
-  ...values: readonly CipoCssInterpolation[]
-): string;
+/**
+ * Inline CSS namespace. inline.css`` preserves editor CSS syntax highlighting
+ * and produces a string-safe artifact for style={...} / style="..." usage.
+ */
+export const inline = {
+  /**
+   * Compiles a style string with the same features as css`` but returns inline
+   * declarations instead of classes.
+   *
+   * @param strings Template strings.
+   * @param values Interpolated values.
+   * @returns Inline CSS artifact.
+   *
+   * @example
+   * const style = inline.css`px: 2; color: saturate($colors.primary, 100%);`
+   */
+  css(strings: TemplateStringsArray, ...values: readonly CipoCssInterpolation[]): CipoInlineCssArtifact {
+    const warnings: CipoWarning[] = [];
+    const rawCss = buildCss(strings, values);
+    const transformedCss = transformCss(rawCss, warnings);
+    const ast = parseStylesheet(transformedCss, warnings);
+    const declarations = collectInlineDeclarations(ast, warnings);
+    const cssText = formatInlineDeclarations(declarations);
 
-export function injectGlobal(
-  options: CipoInjectGlobalOptions,
-  cssText: string,
-): string;
+    return {
+      kind: 'cipo.inline-css',
+      rawCss,
+      transformedCss,
+      cssText,
+      toString: () => cssText,
+      [Symbol.toPrimitive]: () => cssText,
+      [Symbol.toStringTag]: 'CipoInlineCssArtifact',
+    };
+  },
+};
 
+/**
+ * Injects global CSS while preserving the previous overloads.
+ */
+export function injectGlobal(strings: TemplateStringsArray, ...values: readonly CipoCssInterpolation[]): string;
+export function injectGlobal(options: CipoInjectGlobalOptions, cssText: string): string;
+export function injectGlobal(artifact: CipoCssArtifact, ...artifacts: readonly CipoCssArtifact[]): string;
 export function injectGlobal(
-  artifact: CipoCssArtifact,
-  ...artifacts: readonly CipoCssArtifact[]
-): string;
-
-export function injectGlobal(
-  first:
-    | TemplateStringsArray
-    | CipoInjectGlobalOptions
-    | CipoCssArtifact,
+  first: TemplateStringsArray | CipoInjectGlobalOptions | CipoCssArtifact,
   ...values: readonly (CipoCssInterpolation | CipoCssArtifact | string)[]
 ): string {
   const warnings: CipoWarning[] = [];
   let important = runtime.config.important;
+  let layer: CipoLayerName | false = 'global';
   let rawCss = EMPTY_STRING;
 
   if (isCssArtifact(first)) {
@@ -903,25 +1084,74 @@ export function injectGlobal(
       const value = values[index];
 
       if (isCssArtifact(value)) {
-        rawCss += "\n";
-        rawCss += value.compiledCss;
+        rawCss += '\n' + value.compiledCss;
       }
     }
   } else if (isInjectGlobalOptions(first)) {
     important = first.important ?? important;
+    layer = first.layer ?? layer;
     rawCss = String(values[0] ?? EMPTY_STRING);
   } else {
     rawCss = buildCss(first, values as readonly CipoCssInterpolation[]);
   }
 
   const transformedCss = transformCss(rawCss, warnings);
-  const compiledCss = important ? addImportantToCssText(transformedCss) : transformedCss;
+  const formattedCss = formatRawCss(important ? addImportantToCssText(transformedCss) : transformedCss);
+  const compiledCss = layer ? wrapLayer(layer, formattedCss) : formattedCss;
 
   insertCss(compiledCss);
 
   return compiledCss;
 }
 
+/**
+ * Injects compiled style into a specific element, document or ShadowRoot.
+ * Useful for Shadow DOM, userscripts and iframe-like isolated surfaces.
+ *
+ * @param target DOM target.
+ * @param styles Style artifacts.
+ * @param options Injection options.
+ * @returns Style element used for injection.
+ */
+export function injectStyle(
+  target: HTMLElement | ShadowRoot | Document,
+  styles: CipoCssArtifact | CipoInlineCssArtifact | readonly (CipoCssArtifact | CipoInlineCssArtifact)[],
+  options: CipoInjectStyleOptions = {},
+): HTMLStyleElement {
+  const styleList = Array.isArray(styles) ? styles : [styles];
+  const cssText = styleList.map(style => isInlineCssArtifact(style) ? String(style) : style.compiledCss).join('\n');
+  const dedupeKey = 'cipo-style-' + hashString(cssText);
+  const parent = target instanceof Document ? target.head : target;
+
+  if (options.dedupe !== false) {
+    const existing = parent.querySelector?.('style[data-cipo-style="' + dedupeKey + '"]');
+
+    if (existing instanceof HTMLStyleElement) {
+      return existing;
+    }
+  }
+
+  const element = document.createElement('style');
+  element.dataset.cipoStyle = dedupeKey;
+
+  if (options.nonce) {
+    element.nonce = options.nonce;
+  }
+
+  element.textContent = cssText;
+
+  if (options.position === 'prepend') {
+    parent.prepend(element);
+  } else {
+    parent.append(element);
+  }
+
+  return element;
+}
+
+/**
+ * Explains a generated atomic class.
+ */
 export function explain(className: string): CipoExplainResult {
   const atom = runtime.debugAtoms.get(className);
 
@@ -937,6 +1167,9 @@ export function explain(className: string): CipoExplainResult {
   };
 }
 
+/**
+ * Reads generated CSS from the runtime style tag.
+ */
 export function getCssText(): string {
   if (!hasDocument()) {
     return EMPTY_STRING;
@@ -951,6 +1184,9 @@ export function getCssText(): string {
   return style.textContent ?? EMPTY_STRING;
 }
 
+/**
+ * Clears all runtime caches and generated style tags.
+ */
 export function reset(): void {
   runtime.sheet = null;
   runtime.insertedCss.clear();
@@ -958,20 +1194,27 @@ export function reset(): void {
   runtime.debugAtoms.clear();
   runtime.themeKeys.clear();
   runtime.warningSink = [];
+  runtime.layerHeaderInserted = false;
 
   if (hasDocument()) {
     document.getElementById(STYLE_ELEMENT_ID)?.remove();
   }
 }
 
+/**
+ * Creates the browser global API object.
+ */
 export function createBrowserGlobal(): CipoBrowserGlobal {
   return {
     cipo,
     configure,
+    setup,
     theme,
     css,
+    inline,
     html,
     injectGlobal,
+    injectStyle,
     explain,
     getCssText,
     reset,
@@ -980,7 +1223,10 @@ export function createBrowserGlobal(): CipoBrowserGlobal {
   };
 }
 
-export function installBrowserGlobal(globalName = "Cipo"): CipoBrowserGlobal {
+/**
+ * Installs the browser global API under a configurable global name.
+ */
+export function installBrowserGlobal(globalName = 'Cipo'): CipoBrowserGlobal {
   const api = createBrowserGlobal();
   const target = globalThis as typeof globalThis & Record<string, unknown>;
 
@@ -1000,14 +1246,17 @@ function createCipoCallable(): CipoCallable {
   base.html = html;
   base.theme = theme;
   base.configure = configure;
+  base.setup = setup;
+  base.inline = inline;
   base.injectGlobal = injectGlobal;
+  base.injectStyle = injectStyle;
   base.explain = explain;
   base.getCssText = getCssText;
   base.reset = reset;
   base.createBrowserGlobal = createBrowserGlobal;
   base.installBrowserGlobal = installBrowserGlobal;
 
-  if (typeof Proxy === "undefined") {
+  if (typeof Proxy === 'undefined') {
     installTagFactories(base);
     return base;
   }
@@ -1018,7 +1267,7 @@ function createCipoCallable(): CipoCallable {
         return Reflect.get(target, property, receiver);
       }
 
-      if (typeof property === "string") {
+      if (typeof property === 'string') {
         return createStyledTagFactory(property);
       }
 
@@ -1039,24 +1288,19 @@ function installTagFactories(target: CipoCallable): void {
   }
 }
 
-function cipoCore(
-  target: CipoTarget,
-  options?: CipoTargetOptions,
-): CipoStyledBuilder {
+function cipoCore(target: CipoTarget, options?: CipoTargetOptions): CipoStyledBuilder {
   if (isElement(target)) {
     return createDomElementBuilder(target);
   }
 
-  if (typeof target === "string") {
+  if (typeof target === 'string') {
     return createStyledTagFactory(target, options);
   }
 
   return createComponentBuilder(target, options);
 }
 
-function createDomElementBuilder<E extends Element>(
-  element: E,
-): CipoStyledBuilder<CipoDomStyledResult<E>> {
+function createDomElementBuilder<ElementType extends Element>(element: ElementType): CipoStyledBuilder<CipoDomStyledResult<ElementType>> {
   return {
     css(strings, ...values) {
       const artifact = createCssArtifact(strings, values);
@@ -1071,42 +1315,29 @@ function createDomElementBuilder<E extends Element>(
   };
 }
 
-function createComponentBuilder<P extends CipoAnyRecord>(
-  component: CipoComponent<P>,
-  options?: CipoTargetOptions,
-): CipoStyledBuilder<CipoComponent<P>> {
+function createComponentBuilder<Props extends CipoAnyRecord>(component: CipoComponent<Props>, options?: CipoTargetOptions): CipoStyledBuilder<CipoComponent<Props>> {
   return {
     css(strings, ...values) {
       const artifact = createCssArtifact(strings, values);
       const adapter = resolveAdapter(options?.adapter);
 
       if (adapter.wrapComponent) {
-        return adapter.wrapComponent(component, artifact.className) as CipoComponent<P>;
+        return adapter.wrapComponent(component, artifact.className) as CipoComponent<Props>;
       }
 
-      return createGenericWrappedComponent(
-        component,
-        artifact.className,
-        adapter.classProp,
-      ) as CipoComponent<P>;
+      return createGenericWrappedComponent(component, artifact.className, adapter.classProp) as CipoComponent<Props>;
     },
   };
 }
 
-function createStyledTagFactory(
-  tag: string,
-  options?: CipoTargetOptions,
-  defaultProps?: CipoAnyRecord,
-): CipoStyledTagFactory {
+function createStyledTagFactory(tag: string, options?: CipoTargetOptions, defaultProps?: CipoAnyRecord): CipoStyledTagFactory {
   return {
     css(strings, ...values) {
       const artifact = createCssArtifact(strings, values);
       const adapter = resolveAdapter(options?.adapter);
 
       return function CipoStyledTag(props: CipoAnyRecord = {}) {
-        const mergedBaseProps = defaultProps
-          ? mergeObjects(defaultProps, props)
-          : props;
+        const mergedBaseProps = defaultProps ? mergeObjects(defaultProps, props) : props;
 
         if (adapter.createElement) {
           return adapter.createElement(tag, mergedBaseProps, artifact.className);
@@ -1117,46 +1348,28 @@ function createStyledTagFactory(
       };
     },
     attrs(nextDefaultProps) {
-      return createStyledTagFactory(
-        tag,
-        options,
-        defaultProps ? mergeObjects(defaultProps, nextDefaultProps) : nextDefaultProps,
-      );
+      return createStyledTagFactory(tag, options, defaultProps ? mergeObjects(defaultProps, nextDefaultProps) : nextDefaultProps);
     },
   };
 }
 
 function createPlainComponentPayload(tag: string, props: CipoAnyRecord): CipoAnyRecord {
-  return {
-    tag,
-    props,
-  };
+  return { tag, props };
 }
 
-function createGenericWrappedComponent(
-  component: unknown,
-  className: string,
-  classProp: "class" | "className",
-): CipoComponent {
+function createGenericWrappedComponent(component: unknown, className: string, classProp: 'class' | 'className'): CipoComponent {
   return function CipoWrappedComponent(props: CipoAnyRecord = {}) {
     const nextProps = mergeClassIntoProps(props, classProp, className);
 
-    if (typeof component === "function") {
+    if (typeof component === 'function') {
       return (component as CipoComponent)(nextProps);
     }
 
-    return {
-      component,
-      props: nextProps,
-    };
+    return { component, props: nextProps };
   };
 }
 
-function createDomElement(
-  tag: string,
-  props: CipoAnyRecord | null | undefined,
-  className: string,
-): Element {
+function createDomElement(tag: string, props: CipoAnyRecord | null | undefined, className: string): Element {
   if (!hasDocument()) {
     return createPlainComponentPayload(tag, mergeClassIntoProps(props, CLASS_PROP, className)) as unknown as Element;
   }
@@ -1187,12 +1400,12 @@ function applyPropsToElement(element: Element, props: CipoAnyRecord): void {
       continue;
     }
 
-    if (key === "style" && isPlainObject(value)) {
-      applyStyleObject(element as HTMLElement, value as Record<string, unknown>);
+    if (key === 'style') {
+      applyInlineStyleValue(element as HTMLElement, value);
       continue;
     }
 
-    if (key.startsWith("on") && typeof value === "function") {
+    if (key.startsWith('on') && typeof value === 'function') {
       element.addEventListener(key.slice(2).toLowerCase(), value as EventListener);
       continue;
     }
@@ -1227,15 +1440,19 @@ function appendChildren(element: Element, children: unknown): void {
   element.appendChild(document.createTextNode(String(children)));
 }
 
-function applyStyleObject(element: HTMLElement, styles: Record<string, unknown>): void {
-  for (const key in styles) {
-    const value = styles[key];
+function applyInlineStyleValue(element: HTMLElement, value: unknown): void {
+  if (isInlineCssArtifact(value)) {
+    element.setAttribute('style', value.cssText);
+    return;
+  }
 
-    if (value === null || value === undefined) {
-      continue;
-    }
+  if (typeof value === 'string') {
+    element.setAttribute('style', inline.css([value] as unknown as TemplateStringsArray).cssText);
+    return;
+  }
 
-    element.style.setProperty(toKebabCase(key), String(value));
+  if (isPlainObject(value)) {
+    element.setAttribute('style', compileStyleObjectToInlineCss(value));
   }
 }
 
@@ -1244,7 +1461,7 @@ function applyClassNameToElement(element: Element, className: string): void {
     return;
   }
 
-  const parts = className.split(" ");
+  const parts = className.split(' ');
 
   for (let index = 0; index < parts.length; index += 1) {
     const item = parts[index];
@@ -1255,43 +1472,34 @@ function applyClassNameToElement(element: Element, className: string): void {
   }
 }
 
-function mergeClassIntoProps(
-  props: CipoAnyRecord | null | undefined,
-  classProp: "class" | "className",
-  className: string,
-): CipoAnyRecord {
+function mergeClassIntoProps(props: CipoAnyRecord | null | undefined, classProp: 'class' | 'className', className: string): CipoAnyRecord {
   const nextProps = props ? { ...props } : {};
   const existing = nextProps[classProp];
 
-  nextProps[classProp] = existing
-    ? String(existing) + " " + className
-    : className;
+  nextProps[classProp] = existing ? String(existing) + ' ' + className : className;
 
   return nextProps;
 }
 
-function mergeObjects(
-  left: CipoAnyRecord,
-  right: CipoAnyRecord,
-): CipoAnyRecord {
+function mergeObjects(left: CipoAnyRecord, right: CipoAnyRecord): CipoAnyRecord {
   return { ...left, ...right };
 }
 
 function resolveAdapter(adapter?: CipoAdapterName | CipoAdapter): CipoAdapter {
   const selected = adapter ?? runtime.config.adapter;
 
-  if (typeof selected !== "string") {
+  if (typeof selected !== 'string') {
     return selected;
   }
 
   switch (selected) {
-    case "solid":
+    case 'solid':
       return SOLID_ADAPTER;
-    case "react":
+    case 'react':
       return REACT_ADAPTER;
-    case "preact":
+    case 'preact':
       return PREACT_ADAPTER;
-    case "dom":
+    case 'dom':
     default:
       return DOM_ADAPTER;
   }
@@ -1301,32 +1509,25 @@ function resolveAdapter(adapter?: CipoAdapterName | CipoAdapter): CipoAdapter {
  * CSS Artifact Build
  * ========================================================================== */
 
-function createCssArtifact(
-  strings: TemplateStringsArray,
-  values: readonly CipoCssInterpolation[],
-): CipoCssArtifact {
+function createCssArtifact(strings: TemplateStringsArray, values: readonly CipoCssInterpolation[]): CipoCssArtifact {
   const warnings: CipoWarning[] = [];
   const rawCss = buildCss(strings, values);
   const transformedCss = transformCss(rawCss, warnings);
   const ast = parseStylesheet(transformedCss, warnings);
-  const scopeClassName = runtime.config.prefix + "-s-" + hashString(transformedCss);
+  const scopeClassName = runtime.config.prefix + '-s-' + hashString(transformedCss);
   const atoms: CipoAtomicRule[] = [];
   const scopedRules: CipoScopedRule[] = [];
 
   collectRules(ast, {}, atoms, scopedRules, warnings, scopeClassName);
 
-  const className = joinClassNames(
-    atoms,
-    scopedRules.length > 0 ? scopeClassName : EMPTY_STRING,
-  );
-
+  const className = joinClassNames(atoms, scopedRules.length > 0 ? scopeClassName : EMPTY_STRING);
   const compiledCss = compileCss(atoms, scopedRules);
-  const artifactId = runtime.config.prefix + "-artifact-" + hashString(rawCss);
+  const artifactId = runtime.config.prefix + '-artifact-' + hashString(rawCss);
 
   insertCss(compiledCss);
 
   return {
-    kind: "cipo.css",
+    kind: 'cipo.css',
     className,
     scopeClassName,
     atoms,
@@ -1334,16 +1535,10 @@ function createCssArtifact(
     rawCss,
     transformedCss,
     compiledCss,
-    debug: {
-      id: artifactId,
-      atoms,
-      scopedRules,
-      ast,
-      warnings,
-    },
+    debug: { id: artifactId, atoms, scopedRules, ast, warnings },
     toString: () => className,
     [Symbol.toPrimitive]: () => className,
-    [Symbol.toStringTag]: "CipoCssArtifact",
+    [Symbol.toStringTag]: 'CipoCssArtifact',
   };
 }
 
@@ -1351,10 +1546,7 @@ function createCssArtifact(
  * CSS Build + Transform
  * ========================================================================== */
 
-function buildCss(
-  strings: TemplateStringsArray,
-  values: readonly CipoCssInterpolation[],
-): string {
+function buildCss(strings: TemplateStringsArray, values: readonly CipoCssInterpolation[]): string {
   let output = EMPTY_STRING;
 
   for (let index = 0; index < strings.length; index += 1) {
@@ -1371,6 +1563,11 @@ function buildCss(
       continue;
     }
 
+    if (isInlineCssArtifact(value)) {
+      output += value.rawCss;
+      continue;
+    }
+
     if (isPlainObject(value)) {
       output += styleObjectToCss(value);
       continue;
@@ -1383,87 +1580,134 @@ function buildCss(
 }
 
 function transformCss(input: string, warnings: CipoWarning[]): string {
-  return replaceWithDirectives(
-    replaceSizeFunctions(
-      replaceFluidFunctions(
-        replaceAlphaFunctions(
-          replaceSpacingFunctions(replaceThemeTokens(stripComments(input))),
-          warnings,
-        ),
-      ),
-    ),
-    warnings,
-  );
+  const withoutComments = stripComments(input);
+  const withTokens = replaceThemeTokens(withoutComments);
+  const withFunctions = replaceFunctionCalls(withTokens, warnings);
+  const withDirectives = replaceWithDirectives(withFunctions, warnings);
+
+  return withDirectives;
 }
 
 function stripComments(input: string): string {
-  return input.replace(/\/\*[\s\S]*?\*\//g, EMPTY_STRING);
+  return input.replace(/\/\*[\s\S]*?\*\//g, EMPTY_STRING).replace(/(^|[^:])\/\/.*$/gm, '$1');
 }
 
 function replaceThemeTokens(input: string): string {
   return input
-    .replace(/\$theme\.([a-zA-Z0-9._-]+)/g, (_match, tokenPath: string) => {
-      return "var(--" + runtime.config.prefix + "-" + tokenPath.replaceAll(".", "-") + ")";
-    })
-    .replace(/\$([a-zA-Z][\w-]*)/g, (match, tokenName: string) => {
+    .replace(/\$theme\.([a-zA-Z0-9._-]+)/g, (_match, tokenPath: string) => 'var(--' + runtime.config.prefix + '-' + tokenPath.replaceAll('.', '-') + ')')
+    .replace(/\$([a-zA-Z][\w-]*(?:-[\w]+)*)/g, (match, tokenName: string) => {
       if (runtime.themeKeys.has(tokenName) || hasCssVariable(tokenName)) {
-        return "var(--" + runtime.config.prefix + "-" + tokenName + ")";
+        return 'var(--' + runtime.config.prefix + '-' + tokenName + ')';
       }
 
       return match;
-    });
+    })
+    .replace(/\$colors\.([a-zA-Z0-9._-]+)/g, (_match, tokenPath: string) => 'var(--' + runtime.config.prefix + '-colors-' + tokenPath.replaceAll('.', '-') + ')');
 }
 
-function replaceSpacingFunctions(input: string): string {
-  return input.replace(/x:spacing\((.*?)\)/g, (_match, rawValue: string) => {
-    return "calc(var(--" + runtime.config.prefix + "-spacing) * " + rawValue.trim() + ")";
-  });
-}
-
-function replaceAlphaFunctions(input: string, warnings: CipoWarning[]): string {
-  return input.replace(/x:alpha\(([\s\S]*?)\)/g, (_match, rawArgs: string) => {
-    const parts = splitTopLevel(rawArgs, "/");
-
-    if (parts.length !== 2) {
-      warn(warnings, "invalid-alpha-function", "x:alpha() expects `color / amount`.", rawArgs);
-      return rawArgs;
+function replaceFunctionCalls(input: string, warnings: CipoWarning[]): string {
+  return input.replace(/(?:x:)?([a-zA-Z][\w-]*)\(([\s\S]*?)\)/g, (match, name: string, rawArgs: string) => {
+    switch (name) {
+      case 'spacing':
+        return resolveSpacingFunction(rawArgs);
+      case 'fluid':
+        return resolveFluidFunction(rawArgs);
+      case 'size':
+        return 'width:' + normalizeDeclarationValue('width', rawArgs.trim()) + ';height:' + normalizeDeclarationValue('height', rawArgs.trim()) + ';';
+      case 'alpha':
+        return resolveAlphaFunction(rawArgs, warnings);
+      case 'lighten':
+      case 'darken':
+      case 'saturate':
+        return resolveColorAdjustFunction(name, rawArgs);
+      case 'gradient':
+        return resolveGradientFunction(rawArgs);
+      case 'rem':
+        return pxToRem(rawArgs.trim());
+      default:
+        return match;
     }
-
-    return "color-mix(in oklab, " + parts[0].trim() + " " + parts[1].trim() + ", transparent)";
   });
 }
 
-function replaceFluidFunctions(input: string): string {
-  return input.replace(/x:fluid\(([\s\S]*?)\)/g, (_match, rawArgs: string) => {
-    const parts = splitTopLevel(rawArgs, ",");
-    const min = parts[0]?.trim() || "1rem";
-    const max = parts[1]?.trim() || "2rem";
-    const preferred = parts[2]?.trim() || "calc(" + min + " + 1vw)";
-
-    return "clamp(" + min + ", " + preferred + ", " + max + ")";
-  });
+function resolveSpacingFunction(rawValue: string): string {
+  return 'calc(var(--' + runtime.config.prefix + '-spacing, ' + DEFAULT_SPACING_VALUE + ') * ' + rawValue.trim() + ')';
 }
 
-function replaceSizeFunctions(input: string): string {
-  return input.replace(/x:size\(([\s\S]*?)\)/g, (_match, rawValue: string) => {
-    const value = rawValue.trim();
+function resolveFluidFunction(rawArgs: string): string {
+  const parts = splitTopLevel(rawArgs, ',');
+  const min = normalizeDeclarationValue('fluid', parts[0]?.trim() || '1rem');
+  const max = normalizeDeclarationValue('fluid', parts[1]?.trim() || '2rem');
+  const preferred = normalizeDeclarationValue('fluid', parts[2]?.trim() || 'calc(' + min + ' + 1vw)');
 
-    return "width:" + value + ";height:" + value + ";";
-  });
+  return 'clamp(' + min + ', ' + preferred + ', ' + max + ')';
+}
+
+function resolveAlphaFunction(rawArgs: string, warnings: CipoWarning[]): string {
+  const parts = splitTopLevel(rawArgs, '/');
+
+  if (parts.length !== 2) {
+    warn(warnings, 'invalid-alpha-function', 'alpha() expects `color / amount`.', rawArgs);
+    return rawArgs;
+  }
+
+  const color = parts[0].trim();
+  const amount = parts[1].trim();
+  const space = runtime.config.colorMode === 'oklab' ? 'oklab' : 'oklch';
+
+  if (runtime.config.colorMode === 'rgba') {
+    return 'color-mix(in srgb, ' + color + ' ' + amount + ', transparent)';
+  }
+
+  if (runtime.config.colorMode === 'hsl') {
+    return 'color-mix(in hsl, ' + color + ' ' + amount + ', transparent)';
+  }
+
+  return 'color-mix(in ' + space + ', ' + color + ' ' + amount + ', transparent)';
+}
+
+function resolveColorAdjustFunction(name: string, rawArgs: string): string {
+  const parts = splitTopLevel(rawArgs, ',');
+  const color = parts[0]?.trim() || 'currentColor';
+  const amount = parts[1]?.trim() || '10%';
+  const signedAmount = name === 'darken' ? '-' + amount.replace(/^-/, '') : amount;
+
+  if (name === 'saturate') {
+    return 'oklch(from ' + color + ' l calc(c + ' + amount + ') h)';
+  }
+
+  if (runtime.config.colorMode === 'preserve') {
+    return color;
+  }
+
+  return 'oklch(from ' + color + ' calc(l + ' + signedAmount + ') c h)';
+}
+
+function resolveGradientFunction(rawArgs: string): string {
+  const parts = splitTopLevel(rawArgs, ',').map(part => part.trim()).filter(Boolean);
+  const kind = parts[0] ?? 'linear';
+
+  if (kind === 'radial') {
+    return 'radial-gradient(' + parts.slice(1).join(', ') + ')';
+  }
+
+  if (kind === 'conic') {
+    return 'conic-gradient(' + parts.slice(1).join(', ') + ')';
+  }
+
+  return 'linear-gradient(' + parts.slice(1).join(', ') + ')';
 }
 
 function replaceWithDirectives(input: string, warnings: CipoWarning[]): string {
-  return input.replace(/@with\(([\s\S]*?)\);?/g, (_match, rawArgs: string) => {
-    return expandWithUtilities(rawArgs, warnings);
-  });
+  return input.replace(/@with\(([\s\S]*?)\);?/g, (_match, rawArgs: string) => expandWithUtilities(rawArgs, warnings));
 }
 
 /* ============================================================================
- * Utilities Directive
+ * Utilities Directive and Text Helper
  * ========================================================================== */
 
 function expandWithUtilities(rawArgs: string, warnings: CipoWarning[]): string {
-  const utilities = splitTopLevel(rawArgs, ",");
+  const utilities = splitTopLevel(rawArgs, ',');
   let output = EMPTY_STRING;
 
   for (let index = 0; index < utilities.length; index += 1) {
@@ -1482,96 +1726,141 @@ function expandUtility(rawUtility: string, warnings: CipoWarning[]): string {
 
   if (!call) {
     switch (rawUtility) {
-      case "hidden":
-        return "display:none;";
-      case "block":
-        return "display:block;";
-      case "flex":
-        return "display:flex;";
-      case "inline-flex":
-        return "display:inline-flex;";
-      case "grid":
-        return "display:grid;";
-      case "center":
-        return "display:flex;align-items:center;justify-content:center;";
-      case "items-center":
-        return "align-items:center;";
-      case "justify-center":
-        return "justify-content:center;";
-      case "sr-only":
-        return "position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;";
+      case 'hidden':
+        return 'display:none;';
+      case 'block':
+        return 'display:block;';
+      case 'flex':
+        return 'display:flex;';
+      case 'inline-flex':
+        return 'display:inline-flex;';
+      case 'grid':
+        return 'display:grid;';
+      case 'center':
+        return 'display:flex;align-items:center;justify-content:center;';
+      case 'items-center':
+        return 'align-items:center;';
+      case 'justify-center':
+        return 'justify-content:center;';
+      case 'sr-only':
+        return 'position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;';
       default:
-        warn(warnings, "unknown-utility", 'Unknown @with utility "' + rawUtility + '".', rawUtility);
+        warn(warnings, 'unknown-utility', 'Unknown @with utility "' + rawUtility + '".', rawUtility);
         return EMPTY_STRING;
     }
   }
 
-  const value = call.args.join(",").trim();
+  const value = call.args.join(',').trim();
 
-  switch (call.name) {
-    case "bg":
-      return "background:" + value + ";";
-    case "color":
-      return "color:" + value + ";";
-    case "font-size":
-      return "font-size:" + value + ";";
-    case "text":
-      return expandTextUtility(value, warnings);
-    case "py":
-      return "padding-block:" + value + ";";
-    case "px":
-      return "padding-inline:" + value + ";";
-    case "pt":
-      return "padding-top:" + value + ";";
-    case "pr":
-      return "padding-right:" + value + ";";
-    case "pb":
-      return "padding-bottom:" + value + ";";
-    case "pl":
-      return "padding-left:" + value + ";";
-    case "p":
-      return "padding:" + value + ";";
-    case "m":
-      return "margin:" + value + ";";
-    case "mx":
-      return "margin-inline:" + value + ";";
-    case "my":
-      return "margin-block:" + value + ";";
-    case "rounded":
-      return "border-radius:" + value + ";";
-    case "w":
-      return "width:" + value + ";";
-    case "h":
-      return "height:" + value + ";";
-    case "size":
-      return "width:" + value + ";height:" + value + ";";
-    case "shadow":
-      return "box-shadow:" + value + ";";
-    default:
-      warn(warnings, "unknown-utility", 'Unknown @with utility "' + call.name + '".', rawUtility);
-      return EMPTY_STRING;
+  if (call.name === 'text') {
+    return expandTextUtility(value, warnings);
   }
+
+  const alias = PROPERTY_ALIASES[call.name];
+
+  if (alias) {
+    return createDeclaration(alias.property, normalizeDeclarationValue(alias.property, value, alias.scale));
+  }
+
+  warn(warnings, 'unknown-utility', 'Unknown @with utility "' + call.name + '".', rawUtility);
+
+  return EMPTY_STRING;
 }
 
 function expandTextUtility(value: string, warnings: CipoWarning[]): string {
+  const args = splitTopLevel(value, ',');
   const typed = parseTypedArguments(value);
+  let output = EMPTY_STRING;
+  let inferredColor = EMPTY_STRING;
 
-  if (typed.color) {
-    return "color:" + typed.color + ";";
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index].trim();
+
+    if (!arg || arg.includes(':')) {
+      continue;
+    }
+
+    if (arg === 'underline') {
+      output += createDeclaration('text-decoration-line', 'underline');
+      continue;
+    }
+
+    if (arg === 'no-underline') {
+      output += createDeclaration('text-decoration-line', 'none');
+      continue;
+    }
+
+    if (arg === 'uppercase' || arg === 'lowercase' || arg === 'capitalize') {
+      output += createDeclaration('text-transform', arg);
+      continue;
+    }
+
+    if (isColorLike(arg)) {
+      inferredColor = arg;
+      continue;
+    }
+
+    if (arg.startsWith('gradient(')) {
+      output += createDeclaration('background-image', resolveGradientFunction(arg.slice('gradient('.length, -1)));
+      output += createDeclaration('-webkit-background-clip', 'text');
+      output += createDeclaration('background-clip', 'text');
+      output += createDeclaration('color', 'transparent');
+    }
   }
 
-  if (typed.length) {
-    return "font-size:" + typed.length + ";";
+  if (typed.size) {
+    output += createDeclaration('font-size', resolveTextSize(typed.size));
   }
 
-  warn(
-    warnings,
-    "ambiguous-text-utility",
-    "text() needs a typed argument like text(color: red) or text(length: 1rem).",
-    value,
-  );
+  if (typed.lh || typed.leading) {
+    output += createDeclaration('line-height', typed.lh ?? typed.leading ?? EMPTY_STRING);
+  }
 
-  return EMPTY_STRING;
+  if (typed.color || inferredColor) {
+    output += createDeclaration('color', normalizeDeclarationValue('color', typed.color ?? inferredColor, 'color'));
+  }
+
+  if (typed.weight) {
+    output += createDeclaration('font-weight', typed.weight);
+  }
+
+  if (typed.align) {
+    output += createDeclaration('text-align', typed.align);
+  }
+
+  if (typed.decoration) {
+    output += createDeclaration('text-decoration-line', typed.decoration);
+  }
+
+  if (typed.shadow) {
+    output += createDeclaration('text-shadow', resolveShadowValue(typed.shadow));
+  }
+
+  if (typed.tracking) {
+    output += createDeclaration('letter-spacing', resolveTrackingValue(typed.tracking));
+  }
+
+  if (typed.transform) {
+    output += createDeclaration('text-transform', typed.transform);
+  }
+
+  if (typed.wrap) {
+    output += createDeclaration('text-wrap', typed.wrap);
+  }
+
+  if (typed.fill) {
+    const fill = typed.fill.startsWith('gradient(') ? resolveGradientFunction(typed.fill.slice('gradient('.length, -1)) : typed.fill;
+    output += createDeclaration('background-image', fill);
+    output += createDeclaration('-webkit-background-clip', 'text');
+    output += createDeclaration('background-clip', 'text');
+    output += createDeclaration('color', 'transparent');
+  }
+
+  if (!output) {
+    warn(warnings, 'ambiguous-text-utility', 'text() needs typed arguments like text(size: sm, lh: 2, color: red).', value);
+  }
+
+  return output;
 }
 
 /* ============================================================================
@@ -1590,7 +1879,7 @@ function parseBlockBody(input: string, warnings: CipoWarning[]): readonly CipoAs
   while (index < input.length) {
     const char = input[index];
 
-    if (char !== "{") {
+    if (char !== '{') {
       buffer += char;
       index += 1;
       continue;
@@ -1602,7 +1891,7 @@ function parseBlockBody(input: string, warnings: CipoWarning[]): readonly CipoAs
     const endIndex = findMatchingBrace(input, index);
 
     if (endIndex < 0) {
-      warn(warnings, "unclosed-block", 'Block "' + blockName + '" is missing a closing brace.', input.slice(index));
+      warn(warnings, 'unclosed-block', 'Block "' + blockName + '" is missing a closing brace.', input.slice(index));
       buffer += input.slice(index);
       break;
     }
@@ -1610,10 +1899,10 @@ function parseBlockBody(input: string, warnings: CipoWarning[]): readonly CipoAs
     const body = input.slice(index + 1, endIndex);
 
     nodes.push({
-      type: "block",
+      type: 'block',
       name: blockName,
       body: parseBlockBody(body, warnings),
-      source: blockName + "{" + body + "}",
+      source: blockName + '{' + body + '}',
     });
 
     index = endIndex + 1;
@@ -1624,12 +1913,8 @@ function parseBlockBody(input: string, warnings: CipoWarning[]): readonly CipoAs
   return nodes;
 }
 
-function appendDeclarationsAndDirectives(
-  nodes: CipoAstNode[],
-  input: string,
-  warnings: CipoWarning[],
-): void {
-  const chunks = splitTopLevel(input, ";");
+function appendDeclarationsAndDirectives(nodes: CipoAstNode[], input: string, warnings: CipoWarning[]): void {
+  const chunks = splitTopLevel(input, ';');
 
   for (let index = 0; index < chunks.length; index += 1) {
     const source = chunks[index].trim();
@@ -1638,7 +1923,7 @@ function appendDeclarationsAndDirectives(
       continue;
     }
 
-    if (source.startsWith("@")) {
+    if (source.startsWith('@')) {
       const directive = parseDirective(source, warnings);
 
       if (directive) {
@@ -1648,30 +1933,47 @@ function appendDeclarationsAndDirectives(
       continue;
     }
 
-    const colonIndex = findTopLevelColon(source);
+    const functionDeclaration = parseDeclarationFunction(source);
 
-    if (colonIndex <= 0) {
-      warn(warnings, "invalid-declaration", 'Invalid declaration "' + source + '".', source);
+    if (functionDeclaration) {
+      nodes.push(...parseStylesheet(functionDeclaration, warnings));
       continue;
     }
 
-    nodes.push({
-      type: "declaration",
-      property: source.slice(0, colonIndex).trim(),
-      value: source.slice(colonIndex + 1).trim(),
-      source,
-    });
+    const colonIndex = findTopLevelColon(source);
+
+    if (colonIndex <= 0) {
+      warn(warnings, 'invalid-declaration', 'Invalid declaration "' + source + '".', source);
+      continue;
+    }
+
+    const rawProperty = source.slice(0, colonIndex).trim();
+    const rawValue = source.slice(colonIndex + 1).trim();
+    const normalizedDeclarations = normalizePropertyDeclaration(rawProperty, rawValue);
+
+    for (let childIndex = 0; childIndex < normalizedDeclarations.length; childIndex += 1) {
+      nodes.push(normalizedDeclarations[childIndex]);
+    }
   }
 }
 
-function parseDeclarationsAndDirectives(
-  input: string,
-  warnings: CipoWarning[],
-): readonly CipoAstNode[] {
+function parseDeclarationFunction(source: string): string | null {
+  const call = parseFunctionCall(source);
+
+  if (!call) {
+    return null;
+  }
+
+  if (call.name === 'text') {
+    return expandTextUtility(call.args.join(','), []);
+  }
+
+  return null;
+}
+
+function parseDeclarationsAndDirectives(input: string, warnings: CipoWarning[]): readonly CipoAstNode[] {
   const nodes: CipoAstNode[] = [];
-
   appendDeclarationsAndDirectives(nodes, input, warnings);
-
   return nodes;
 }
 
@@ -1679,14 +1981,14 @@ function parseDirective(source: string, warnings: CipoWarning[]): CipoDirectiveN
   const match = source.match(/^@([a-zA-Z][\w-]*)\(([\s\S]*)\)$/);
 
   if (!match) {
-    warn(warnings, "invalid-directive", 'Invalid directive "' + source + '".', source);
+    warn(warnings, 'invalid-directive', 'Invalid directive "' + source + '".', source);
     return null;
   }
 
   return {
-    type: "directive",
+    type: 'directive',
     name: match[1],
-    args: splitTopLevel(match[2], ","),
+    args: splitTopLevel(match[2], ','),
     source,
   };
 }
@@ -1706,12 +2008,12 @@ function collectRules(
   for (let index = 0; index < nodes.length; index += 1) {
     const node = nodes[index];
 
-    if (node.type === "declaration") {
+    if (node.type === 'declaration') {
       collectDeclaration(node, context, atoms);
       continue;
     }
 
-    if (node.type === "directive") {
+    if (node.type === 'directive') {
       collectDirective(node, context, atoms, warnings, scopeClassName);
       continue;
     }
@@ -1720,11 +2022,7 @@ function collectRules(
   }
 }
 
-function collectDeclaration(
-  declaration: CipoDeclarationNode,
-  context: CipoRuleContext,
-  atoms: CipoAtomicRule[],
-): void {
+function collectDeclaration(declaration: CipoDeclarationNode, context: CipoRuleContext, atoms: CipoAtomicRule[]): void {
   const expanded = expandResponsiveDeclaration(declaration);
 
   if (!expanded) {
@@ -1735,17 +2033,12 @@ function collectDeclaration(
   for (let index = 0; index < expanded.length; index += 1) {
     const item = expanded[index];
 
-    atoms.push(
-      createAtomicRule(
-        {
-          type: "declaration",
-          property: declaration.property,
-          value: item.value,
-          source: declaration.property + ":" + item.value,
-        },
-        resolveBreakpointContext(context, item.breakpoint),
-      ),
-    );
+    atoms.push(createAtomicRule({
+      type: 'declaration',
+      property: declaration.property,
+      value: item.value,
+      source: declaration.property + ':' + item.value,
+    }, resolveBreakpointContext(context, item.breakpoint)));
   }
 }
 
@@ -1756,12 +2049,12 @@ function collectDirective(
   warnings: CipoWarning[],
   scopeClassName: string,
 ): void {
-  if (directive.name !== "with") {
-    warn(warnings, "unknown-directive", 'Unknown directive "@' + directive.name + '".', directive);
+  if (directive.name !== 'with') {
+    warn(warnings, 'unknown-directive', 'Unknown directive "@' + directive.name + '".', directive);
     return;
   }
 
-  const expanded = expandWithUtilities(directive.args.join(","), warnings);
+  const expanded = expandWithUtilities(directive.args.join(','), warnings);
   const nestedAst = parseDeclarationsAndDirectives(expanded, warnings);
 
   collectRules(nestedAst, context, atoms, [], warnings, scopeClassName);
@@ -1777,60 +2070,40 @@ function collectBlock(
 ): void {
   const name = block.name.trim();
 
-  if (name.startsWith("x:not(")) {
+  if (name.startsWith('x:not(')) {
     const breakpoint = name.replace(/^x:not\(/, EMPTY_STRING).replace(/\)$/, EMPTY_STRING).trim();
-
-    collectRules(
-      block.body,
-      { ...context, notBreakpoint: breakpoint },
-      atoms,
-      scopedRules,
-      warnings,
-      scopeClassName,
-    );
-
+    collectRules(block.body, { ...context, notBreakpoint: breakpoint }, atoms, scopedRules, warnings, scopeClassName);
     return;
   }
 
-  if (name.startsWith("x:")) {
-    const next = name.slice(2).trim();
+  if (name.startsWith('x:')) {
+    const parts = name.slice(2).split(':').map(part => part.trim()).filter(Boolean);
+    let nextContext = context;
+    let consumed = false;
 
-    if (next in runtime.config.breakpoints) {
-      collectRules(
-        block.body,
-        resolveBreakpointContext(context, next),
-        atoms,
-        scopedRules,
-        warnings,
-        scopeClassName,
-      );
+    for (let index = 0; index < parts.length; index += 1) {
+      const part = parts[index];
 
-      return;
+      if (part in runtime.config.breakpoints) {
+        nextContext = resolveBreakpointContext(nextContext, part);
+        consumed = true;
+        continue;
+      }
+
+      if (part === 'dark') {
+        nextContext = { ...nextContext, dark: true };
+        consumed = true;
+        continue;
+      }
+
+      if (isPseudoName(part)) {
+        nextContext = { ...nextContext, pseudo: ':' + part };
+        consumed = true;
+      }
     }
 
-    if (next === "dark") {
-      collectRules(
-        block.body,
-        { ...context, dark: true },
-        atoms,
-        scopedRules,
-        warnings,
-        scopeClassName,
-      );
-
-      return;
-    }
-
-    if (isPseudoName(next)) {
-      collectRules(
-        block.body,
-        { ...context, pseudo: ":" + next },
-        atoms,
-        scopedRules,
-        warnings,
-        scopeClassName,
-      );
-
+    if (consumed) {
+      collectRules(block.body, nextContext, atoms, scopedRules, warnings, scopeClassName);
       return;
     }
   }
@@ -1840,7 +2113,7 @@ function collectBlock(
   for (let index = 0; index < block.body.length; index += 1) {
     const node = block.body[index];
 
-    if (node.type === "declaration") {
+    if (node.type === 'declaration') {
       declarations.push(node);
     }
   }
@@ -1849,21 +2122,114 @@ function collectBlock(
     return;
   }
 
-  scopedRules.push({
-    selector: resolveScopedSelector(scopeClassName, name),
-    declarations,
-    context,
-  });
+  scopedRules.push({ selector: resolveScopedSelector(scopeClassName, name), declarations, context });
+}
+
+/* ============================================================================
+ * Declaration Normalization
+ * ========================================================================== */
+
+function normalizePropertyDeclaration(rawProperty: string, rawValue: string): CipoDeclarationNode[] {
+  const alias = PROPERTY_ALIASES[rawProperty];
+
+  if (!alias) {
+    return [{ type: 'declaration', property: rawProperty, value: normalizeDeclarationValue(rawProperty, rawValue), source: rawProperty + ':' + rawValue }];
+  }
+
+  const normalizedValue = normalizeDeclarationValue(alias.property, rawValue, alias.scale);
+
+  return [{ type: 'declaration', property: alias.property, value: normalizedValue, source: rawProperty + ':' + rawValue }];
+}
+
+function normalizeDeclarationValue(property: string, rawValue: string, scale: AliasScale = 'none'): string {
+  const value = rawValue.trim();
+
+  if (!value) {
+    return value;
+  }
+
+  if (value.includes('var(') || value.includes('calc(') || value.includes('clamp(') || value.includes('color-mix(') || value.includes('gradient(')) {
+    return normalizePxValues(value);
+  }
+
+  if (value.startsWith('$') || value.startsWith('#') || value.startsWith('rgb') || value.startsWith('hsl') || value.startsWith('oklch') || value.startsWith('oklab')) {
+    return normalizePxValues(value);
+  }
+
+  if (value.startsWith('lighten(') || value.startsWith('darken(') || value.startsWith('saturate(') || value.startsWith('alpha(') || value.startsWith('fluid(') || value.startsWith('spacing(') || value.startsWith('rem(')) {
+    return normalizePxValues(replaceFunctionCalls(value, []));
+  }
+
+  if (scale === 'spacing' && isPlainNumber(value)) {
+    return resolveSpacingFunction(value);
+  }
+
+  if (scale === 'radius' && RADIUS_TOKENS.has(value)) {
+    return 'var(--' + runtime.config.prefix + '-radius-' + value + ')';
+  }
+
+  if (scale === 'shadow' && SHADOW_TOKENS.has(value)) {
+    return 'var(--' + runtime.config.prefix + '-shadow-' + value + ')';
+  }
+
+  if (scale === 'text' && TEXT_SIZE_TOKENS.has(value)) {
+    return 'var(--' + runtime.config.prefix + '-text-' + value + ')';
+  }
+
+  return normalizePxValues(value);
+}
+
+function normalizePxValues(value: string): string {
+  if (!runtime.config.rem.enabled) {
+    return value;
+  }
+
+  return value.replace(/(-?\d*\.?\d+)px\b/g, (_match, amount: string) => pxToRem(amount + 'px'));
+}
+
+function pxToRem(value: string): string {
+  const numeric = Number(value.replace('px', '').trim());
+
+  if (!Number.isFinite(numeric)) {
+    return value;
+  }
+
+  const rem = numeric / runtime.config.rem.baseFontSize;
+  const rounded = Math.round(rem * 10000) / 10000;
+
+  return String(rounded).replace(/\.0+$/, '') + 'rem';
+}
+
+function resolveTextSize(value: string): string {
+  if (TEXT_SIZE_TOKENS.has(value)) {
+    return 'var(--' + runtime.config.prefix + '-text-' + value + ')';
+  }
+
+  return normalizeDeclarationValue('font-size', value);
+}
+
+function resolveShadowValue(value: string): string {
+  if (SHADOW_TOKENS.has(value)) {
+    return 'var(--' + runtime.config.prefix + '-shadow-' + value + ')';
+  }
+
+  return normalizeDeclarationValue('text-shadow', value);
+}
+
+function resolveTrackingValue(value: string): string {
+  if (/^[a-z][\w-]*$/i.test(value)) {
+    return 'var(--' + runtime.config.prefix + '-tracking-' + value + ')';
+  }
+
+  return normalizeDeclarationValue('letter-spacing', value);
 }
 
 /* ============================================================================
  * Responsive Values
  * ========================================================================== */
 
-function expandResponsiveDeclaration(
-  declaration: CipoDeclarationNode,
-): Array<{ readonly breakpoint: string; readonly value: string }> | null {
-  const parts = splitTopLevel(declaration.value, ",");
+function expandResponsiveDeclaration(declaration: CipoDeclarationNode): Array<{ readonly breakpoint: string; readonly value: string }> | null {
+  const parts = splitTopLevel(declaration.value, ',');
   const result: Array<{ readonly breakpoint: string; readonly value: string }> = [];
   let hasResponsive = false;
 
@@ -1872,7 +2238,7 @@ function expandResponsiveDeclaration(
     const match = trimmed.match(/^x:([a-zA-Z][\w-]*)\(([\s\S]*)\)$/);
 
     if (!match) {
-      result.push({ breakpoint: "base", value: trimmed });
+      result.push({ breakpoint: 'base', value: trimmed });
       continue;
     }
 
@@ -1880,7 +2246,7 @@ function expandResponsiveDeclaration(
     const value = match[2].trim();
 
     if (!(breakpoint in runtime.config.breakpoints)) {
-      result.push({ breakpoint: "base", value: trimmed });
+      result.push({ breakpoint: 'base', value: trimmed });
       continue;
     }
 
@@ -1905,42 +2271,19 @@ function resolveBreakpointContext(context: CipoRuleContext, breakpoint: string):
  * Atomic CSS
  * ========================================================================== */
 
-function createAtomicRule(
-  declaration: CipoDeclarationNode,
-  context: CipoRuleContext,
-): CipoAtomicRule {
+function createAtomicRule(declaration: CipoDeclarationNode, context: CipoRuleContext): CipoAtomicRule {
   const property = normalizeCss(declaration.property);
   const value = normalizeCss(declaration.value);
   const normalizedValue = runtime.config.important ? addImportant(value) : value;
-  const id =
-    property +
-    "|" +
-    normalizedValue +
-    "|" +
-    (context.mediaQuery ?? EMPTY_STRING) +
-    "|" +
-    (context.pseudo ?? EMPTY_STRING) +
-    "|" +
-    (context.dark ? "dark" : EMPTY_STRING) +
-    "|" +
-    (context.notBreakpoint ?? EMPTY_STRING);
-
+  const id = [property, normalizedValue, context.mediaQuery ?? EMPTY_STRING, context.pseudo ?? EMPTY_STRING, context.dark ? 'dark' : EMPTY_STRING, context.notBreakpoint ?? EMPTY_STRING].join('|');
   const cached = runtime.atomicCache.get(id);
 
   if (cached) {
     return cached;
   }
 
-  const className = runtime.config.prefix + "-a-" + hashString(id);
-
-  const atom: CipoAtomicRule = {
-    id,
-    className,
-    property: declaration.property,
-    value: normalizedValue,
-    context,
-    source: declaration.source,
-  };
+  const className = runtime.config.prefix + '-a-' + hashString(id);
+  const atom: CipoAtomicRule = { id, className, property: declaration.property, value: normalizedValue, context, source: declaration.source };
 
   runtime.atomicCache.set(id, atom);
   runtime.debugAtoms.set(className, atom);
@@ -1948,29 +2291,26 @@ function createAtomicRule(
   return atom;
 }
 
-function compileCss(
-  atoms: readonly CipoAtomicRule[],
-  scopedRules: readonly CipoScopedRule[],
-): string {
-  let output = EMPTY_STRING;
+function compileCss(atoms: readonly CipoAtomicRule[], scopedRules: readonly CipoScopedRule[]): string {
+  const chunks: string[] = [];
 
   for (let index = 0; index < atoms.length; index += 1) {
-    output += compileAtomicRule(atoms[index]);
-    output += "\n";
+    chunks.push(compileAtomicRule(atoms[index]));
   }
 
   for (let index = 0; index < scopedRules.length; index += 1) {
-    output += compileScopedRule(scopedRules[index]);
-    output += "\n";
+    chunks.push(compileScopedRule(scopedRules[index]));
   }
 
-  return output.trim();
+  const atomicCss = chunks.filter(Boolean).join('\n');
+
+  return formatCss(wrapLayer('atomic', atomicCss));
 }
 
 function compileAtomicRule(atom: CipoAtomicRule): string {
   const selector = compileSelector(atom.className, atom.context);
 
-  return wrapContext(selector + "{" + atom.property + ":" + atom.value + ";}", atom.context);
+  return wrapContext(selector + '{' + createDeclaration(atom.property, atom.value) + '}', atom.context);
 }
 
 function compileScopedRule(rule: CipoScopedRule): string {
@@ -1980,24 +2320,21 @@ function compileScopedRule(rule: CipoScopedRule): string {
     const declaration = rule.declarations[index];
     const value = runtime.config.important ? addImportant(declaration.value) : declaration.value;
 
-    declarations += declaration.property;
-    declarations += ":";
-    declarations += value;
-    declarations += ";";
+    declarations += createDeclaration(declaration.property, value);
   }
 
-  return wrapContext(rule.selector + "{" + declarations + "}", rule.context);
+  return wrapContext(rule.selector + '{' + declarations + '}', rule.context);
 }
 
 function compileSelector(className: string, context: CipoRuleContext): string {
-  let selector = "." + className;
+  let selector = '.' + className;
 
   if (context.pseudo) {
     selector += context.pseudo;
   }
 
   if (context.dark) {
-    selector = runtime.config.darkSelector + " " + selector;
+    selector = runtime.config.darkSelector + ' ' + selector;
   }
 
   return selector;
@@ -2007,18 +2344,58 @@ function wrapContext(rule: string, context: CipoRuleContext): string {
   let output = rule;
 
   if (context.mediaQuery) {
-    output = "@media " + context.mediaQuery + "{" + output + "}";
+    output = '@media ' + context.mediaQuery + '{' + output + '}';
   }
 
   if (context.notBreakpoint) {
     const query = runtime.config.breakpoints[context.notBreakpoint];
 
     if (query) {
-      output = "@media not all and " + query + "{" + output + "}";
+      output = '@media not all and ' + query + '{' + output + '}';
     }
   }
 
   return output;
+}
+
+/* ============================================================================
+ * Inline CSS
+ * ========================================================================== */
+
+function collectInlineDeclarations(ast: readonly CipoAstNode[], warnings: CipoWarning[]): CipoDeclarationNode[] {
+  const output: CipoDeclarationNode[] = [];
+
+  for (let index = 0; index < ast.length; index += 1) {
+    const node = ast[index];
+
+    if (node.type === 'declaration') {
+      output.push(node);
+      continue;
+    }
+
+    if (node.type === 'directive' && node.name === 'with') {
+      output.push(...collectInlineDeclarations(parseDeclarationsAndDirectives(expandWithUtilities(node.args.join(','), warnings), warnings), warnings));
+    }
+  }
+
+  return output;
+}
+
+function formatInlineDeclarations(declarations: readonly CipoDeclarationNode[]): string {
+  let output = EMPTY_STRING;
+
+  for (let index = 0; index < declarations.length; index += 1) {
+    const declaration = declarations[index];
+    output += createDeclaration(declaration.property, declaration.value);
+  }
+
+  return runtime.config.minify ? normalizeCss(output) : output.replace(/;/g, '; ').trim();
+}
+
+function compileStyleObjectToInlineCss(value: Record<string, unknown>): string {
+  const cssText = styleObjectToCss(value as CipoStyleObject);
+
+  return inline.css([cssText] as unknown as TemplateStringsArray).cssText;
 }
 
 /* ============================================================================
@@ -2030,16 +2407,15 @@ function addImportantToCssText(cssText: string): string {
   let output = EMPTY_STRING;
 
   for (let index = 0; index < chunks.length; index += 1) {
-    output += addImportantToRule(chunks[index]);
-    output += "\n";
+    output += addImportantToRule(chunks[index]) + '\n';
   }
 
   return output.trim();
 }
 
 function addImportantToRule(rule: string): string {
-  const openIndex = rule.indexOf("{");
-  const closeIndex = rule.lastIndexOf("}");
+  const openIndex = rule.indexOf('{');
+  const closeIndex = rule.lastIndexOf('}');
 
   if (openIndex < 0 || closeIndex <= openIndex) {
     return rule;
@@ -2048,8 +2424,8 @@ function addImportantToRule(rule: string): string {
   const head = rule.slice(0, openIndex).trim();
   const body = rule.slice(openIndex + 1, closeIndex);
 
-  if (head.startsWith("@")) {
-    return head + "{" + addImportantToCssText(body) + "}";
+  if (head.startsWith('@')) {
+    return head + '{' + addImportantToCssText(body) + '}';
   }
 
   const declarations = parseDeclarationsAndDirectives(body, []);
@@ -2058,25 +2434,22 @@ function addImportantToRule(rule: string): string {
   for (let index = 0; index < declarations.length; index += 1) {
     const node = declarations[index];
 
-    if (node.type !== "declaration") {
+    if (node.type !== 'declaration') {
       continue;
     }
 
-    nextBody += node.property;
-    nextBody += ":";
-    nextBody += addImportant(node.value);
-    nextBody += ";";
+    nextBody += createDeclaration(node.property, addImportant(node.value));
   }
 
-  return head + "{" + nextBody + "}";
+  return head + '{' + nextBody + '}';
 }
 
 function addImportant(value: string): string {
-  return /\s!important\s*$/i.test(value) ? value : value + " !important";
+  return /\s!important\s*$/i.test(value) ? value : value + ' !important';
 }
 
 /* ============================================================================
- * DOM Style Injection
+ * CSS Formatting and Layers
  * ========================================================================== */
 
 function insertCss(cssText: string): void {
@@ -2084,9 +2457,14 @@ function insertCss(cssText: string): void {
     return;
   }
 
-  const rules = splitTopLevelRules(cssText);
   const style = ensureStyleElement();
-  const sheet = style.sheet;
+
+  if (runtime.config.layers && !runtime.layerHeaderInserted) {
+    appendCssText(style, DEFAULT_LAYER_DECLARATION + '\n');
+    runtime.layerHeaderInserted = true;
+  }
+
+  const rules = splitTopLevelRules(cssText);
 
   for (let index = 0; index < rules.length; index += 1) {
     const rule = rules[index];
@@ -2097,21 +2475,8 @@ function insertCss(cssText: string): void {
     }
 
     runtime.insertedCss.add(normalized);
-
-    if (sheet) {
-      try {
-        sheet.insertRule(rule, sheet.cssRules.length);
-        continue;
-      } catch {
-        style.appendChild(document.createTextNode("\n" + rule + "\n"));
-        continue;
-      }
-    }
-
-    style.appendChild(document.createTextNode("\n" + rule + "\n"));
+    appendCssText(style, formatCss(rule) + '\n');
   }
-
-  runtime.sheet = sheet ?? null;
 }
 
 function ensureStyleElement(): HTMLStyleElement {
@@ -2121,43 +2486,121 @@ function ensureStyleElement(): HTMLStyleElement {
     return existing;
   }
 
-  const element = document.createElement("style");
+  const element = document.createElement('style');
   element.id = STYLE_ELEMENT_ID;
-  element.dataset.cipo = "runtime";
-
+  element.dataset.cipo = 'runtime';
   document.head.appendChild(element);
 
   return element;
+}
+
+function appendCssText(style: HTMLStyleElement, cssText: string): void {
+  style.appendChild(document.createTextNode(cssText));
+}
+
+function wrapLayer(layer: CipoLayerName, cssText: string): string {
+  if (!runtime.config.layers || !cssText) {
+    return cssText;
+  }
+
+  return '@layer cipo.' + layer + '{' + cssText + '}';
+}
+
+function formatRawCss(cssText: string): string {
+  return runtime.config.minify ? normalizeCss(cssText) : cssText.trim();
+}
+
+function formatCss(cssText: string): string {
+  if (runtime.config.minify) {
+    return normalizeCss(cssText);
+  }
+
+  return prettyCss(cssText);
+}
+
+function prettyCss(cssText: string): string {
+  let output = EMPTY_STRING;
+  let depth = 0;
+  let token = EMPTY_STRING;
+
+  for (let index = 0; index < cssText.length; index += 1) {
+    const char = cssText[index];
+
+    if (char === '{') {
+      output += token.trim() + ' {\n';
+      depth += 1;
+      token = indent(depth);
+      continue;
+    }
+
+    if (char === '}') {
+      if (token.trim()) {
+        output += token.trim() + '\n';
+      }
+      depth = Math.max(0, depth - 1);
+      output += indent(depth) + '}\n';
+      token = indent(depth);
+      continue;
+    }
+
+    if (char === ';') {
+      output += token.trim() + ';\n';
+      token = indent(depth);
+      continue;
+    }
+
+    token += char;
+  }
+
+  if (token.trim()) {
+    output += token.trim();
+  }
+
+  return output.trim();
+}
+
+function indent(depth: number): string {
+  return '  '.repeat(depth);
+}
+
+function createDeclaration(property: string, value: string): string {
+  return property + ':' + value + ';';
 }
 
 /* ============================================================================
  * Utility Helpers
  * ========================================================================== */
 
-function flattenTheme(
-  tokens: CipoThemeDefinition,
-  path: readonly string[] = [],
-): Array<readonly [string, string | number]> {
+function normalizeRemConfig(rem: boolean | CipoRemConfig | undefined, baseFontSize: number | undefined): Required<CipoRemConfig> | null {
+  if (rem === undefined && baseFontSize === undefined) {
+    return null;
+  }
+
+  if (typeof rem === 'boolean') {
+    return { enabled: rem, baseFontSize: baseFontSize ?? runtime.config.rem.baseFontSize };
+  }
+
+  return {
+    enabled: rem?.enabled ?? runtime.config.rem.enabled,
+    baseFontSize: rem?.baseFontSize ?? baseFontSize ?? runtime.config.rem.baseFontSize,
+  };
+}
+
+function flattenTheme(tokens: CipoThemeDefinition, path: readonly string[] = []): Array<readonly [string, string | number]> {
   const output: Array<readonly [string, string | number]> = [];
   const entries = Object.entries(tokens);
 
   for (let index = 0; index < entries.length; index += 1) {
-    const entry = entries[index];
-    const key = entry[0];
-    const value = entry[1];
+    const [key, value] = entries[index];
     const nextPath = path.length === 0 ? [key] : [...path, key];
 
     if (isPlainObject(value)) {
       const child = flattenTheme(value as CipoThemeDefinition, nextPath);
-
-      for (let childIndex = 0; childIndex < child.length; childIndex += 1) {
-        output.push(child[childIndex]);
-      }
-
+      output.push(...child);
       continue;
     }
 
-    output.push([nextPath.join("-"), value]);
+    output.push([nextPath.join('-'), value]);
   }
 
   return output;
@@ -2168,37 +2611,30 @@ function styleObjectToCss(styleObject: CipoStyleObject): string {
   const entries = Object.entries(styleObject);
 
   for (let index = 0; index < entries.length; index += 1) {
-    const entry = entries[index];
-    const key = entry[0];
-    const value = entry[1];
+    const [key, value] = entries[index];
 
     if (value === null || value === undefined) {
       continue;
     }
 
     if (isPlainObject(value)) {
-      output += key;
-      output += "{";
-      output += styleObjectToCss(value as CipoStyleObject);
-      output += "}";
+      output += key + '{' + styleObjectToCss(value as CipoStyleObject) + '}';
       continue;
     }
 
-    output += toKebabCase(key);
-    output += ":";
-    output += String(value);
-    output += ";";
+    const alias = PROPERTY_ALIASES[key];
+    const property = alias?.property ?? toKebabCase(key);
+    const scale = alias?.scale ?? 'none';
+
+    output += createDeclaration(property, normalizeDeclarationValue(property, String(value), scale));
   }
 
   return output;
 }
 
-function parseFunctionCall(input: string): null | {
-  readonly name: string;
-  readonly args: readonly string[];
-} {
-  const openIndex = input.indexOf("(");
-  const closeIndex = input.lastIndexOf(")");
+function parseFunctionCall(input: string): null | { readonly name: string; readonly args: readonly string[] } {
+  const openIndex = input.indexOf('(');
+  const closeIndex = input.lastIndexOf(')');
 
   if (openIndex < 0 || closeIndex <= openIndex) {
     return null;
@@ -2206,13 +2642,13 @@ function parseFunctionCall(input: string): null | {
 
   return {
     name: input.slice(0, openIndex).trim(),
-    args: splitTopLevel(input.slice(openIndex + 1, closeIndex), ","),
+    args: splitTopLevel(input.slice(openIndex + 1, closeIndex), ','),
   };
 }
 
 function parseTypedArguments(input: string): Record<string, string> {
   const result: Record<string, string> = {};
-  const parts = splitTopLevel(input, ",");
+  const parts = splitTopLevel(input, ',');
 
   for (let index = 0; index < parts.length; index += 1) {
     const part = parts[index];
@@ -2239,11 +2675,7 @@ function splitTopLevel(input: string, separator: string): string[] {
 
     if (quote) {
       buffer += char;
-
-      if (char === quote && input[index - 1] !== "\\") {
-        quote = null;
-      }
-
+      if (char === quote && input[index - 1] !== '\\') quote = null;
       continue;
     }
 
@@ -2253,17 +2685,11 @@ function splitTopLevel(input: string, separator: string): string[] {
       continue;
     }
 
-    if (char === "(" || char === "[") {
-      depth += 1;
-    } else if (char === ")" || char === "]") {
-      depth -= 1;
-    }
+    if (char === '(' || char === '[') depth += 1;
+    else if (char === ')' || char === ']') depth -= 1;
 
     if (char === separator && depth === 0) {
-      if (buffer.trim()) {
-        output.push(buffer.trim());
-      }
-
+      if (buffer.trim()) output.push(buffer.trim());
       buffer = EMPTY_STRING;
       continue;
     }
@@ -2271,10 +2697,7 @@ function splitTopLevel(input: string, separator: string): string[] {
     buffer += char;
   }
 
-  if (buffer.trim()) {
-    output.push(buffer.trim());
-  }
-
+  if (buffer.trim()) output.push(buffer.trim());
   return output;
 }
 
@@ -2288,10 +2711,7 @@ function splitTopLevelRules(input: string): string[] {
     const char = input[index];
 
     if (quote) {
-      if (char === quote && input[index - 1] !== "\\") {
-        quote = null;
-      }
-
+      if (char === quote && input[index - 1] !== '\\') quote = null;
       continue;
     }
 
@@ -2300,17 +2720,17 @@ function splitTopLevelRules(input: string): string[] {
       continue;
     }
 
-    if (char === "{") {
-      depth += 1;
-    } else if (char === "}") {
-      depth -= 1;
-    }
+    if (char === '{') depth += 1;
+    else if (char === '}') depth -= 1;
 
-    if (depth === 0 && char === "}") {
+    if (depth === 0 && char === '}') {
       output.push(input.slice(start, index + 1).trim());
       start = index + 1;
     }
   }
+
+  const tail = input.slice(start).trim();
+  if (tail) output.push(tail);
 
   return output.filter(Boolean);
 }
@@ -2323,10 +2743,7 @@ function findMatchingBrace(input: string, startIndex: number): number {
     const char = input[index];
 
     if (quote) {
-      if (char === quote && input[index - 1] !== "\\") {
-        quote = null;
-      }
-
+      if (char === quote && input[index - 1] !== '\\') quote = null;
       continue;
     }
 
@@ -2335,15 +2752,10 @@ function findMatchingBrace(input: string, startIndex: number): number {
       continue;
     }
 
-    if (char === "{") {
-      depth += 1;
-    } else if (char === "}") {
-      depth -= 1;
-    }
+    if (char === '{') depth += 1;
+    else if (char === '}') depth -= 1;
 
-    if (depth === 0) {
-      return index;
-    }
+    if (depth === 0) return index;
   }
 
   return -1;
@@ -2357,10 +2769,7 @@ function findTopLevelColon(input: string): number {
     const char = input[index];
 
     if (quote) {
-      if (char === quote && input[index - 1] !== "\\") {
-        quote = null;
-      }
-
+      if (char === quote && input[index - 1] !== '\\') quote = null;
       continue;
     }
 
@@ -2369,13 +2778,9 @@ function findTopLevelColon(input: string): number {
       continue;
     }
 
-    if (char === "(" || char === "[") {
-      depth += 1;
-    } else if (char === ")" || char === "]") {
-      depth -= 1;
-    } else if (char === ":" && depth === 0) {
-      return index;
-    }
+    if (char === '(' || char === '[') depth += 1;
+    else if (char === ')' || char === ']') depth -= 1;
+    else if (char === ':' && depth === 0) return index;
   }
 
   return -1;
@@ -2383,16 +2788,9 @@ function findTopLevelColon(input: string): number {
 
 function resolveScopedSelector(scopeClassName: string, selector: string): string {
   const normalized = selector.trim();
-
-  if (!normalized) {
-    return "." + scopeClassName;
-  }
-
-  if (normalized.includes("&")) {
-    return normalized.replaceAll("&", "." + scopeClassName);
-  }
-
-  return "." + scopeClassName + " " + normalized;
+  if (!normalized) return '.' + scopeClassName;
+  if (normalized.includes('&')) return normalized.replaceAll('&', '.' + scopeClassName);
+  return '.' + scopeClassName + ' ' + normalized;
 }
 
 function joinClassNames(atoms: readonly CipoAtomicRule[], scopeClassName: string): string {
@@ -2407,19 +2805,17 @@ function joinClassNames(atoms: readonly CipoAtomicRule[], scopeClassName: string
   for (let index = 0; index < atoms.length; index += 1) {
     const className = atoms[index].className;
 
-    if (seen.has(className)) {
-      continue;
-    }
+    if (seen.has(className)) continue;
 
     seen.add(className);
-    output += output ? " " + className : className;
+    output += output ? ' ' + className : className;
   }
 
   return output;
 }
 
 function normalizeCss(input: string): string {
-  return input.replace(/\s+/g, " ").replace(/\s*([{}:;,>+~])\s*/g, "$1").trim();
+  return input.replace(/\s+/g, ' ').replace(/\s*([{}:;,>+~])\s*/g, '$1').trim();
 }
 
 function hashString(input: string): string {
@@ -2433,85 +2829,85 @@ function hashString(input: string): string {
 }
 
 function toKebabCase(input: string): string {
-  return input.replace(/[A-Z]/g, match => "-" + match.toLowerCase());
+  return input.replace(/[A-Z]/g, match => '-' + match.toLowerCase());
 }
 
-function warn(
-  warnings: CipoWarning[],
-  code: string,
-  message: string,
-  context?: unknown,
-): void {
+function warn(warnings: CipoWarning[], code: string, message: string, context?: unknown): void {
   const warning = { code, message, context };
-
   warnings.push(warning);
   runtime.warningSink.push(warning);
   runtime.config.onWarning?.(warning);
 
   if (runtime.config.debug) {
-    console.warn("[Cipó:" + code + "] " + message, context ?? EMPTY_STRING);
+    console.warn('[Cipó:' + code + '] ' + message, context ?? EMPTY_STRING);
   }
 }
 
 function hasCssVariable(tokenName: string): boolean {
-  if (!hasDocument()) {
-    return false;
-  }
+  if (!hasDocument()) return false;
 
-  const variableName = "--" + runtime.config.prefix + "-" + tokenName;
+  const variableName = '--' + runtime.config.prefix + '-' + tokenName;
   const root = document.querySelector(runtime.config.themeRootSelector) ?? document.documentElement;
 
   return getComputedStyle(root).getPropertyValue(variableName).trim().length > 0;
 }
 
 function hasDocument(): boolean {
-  return typeof document !== "undefined" && Boolean(document.head);
+  return typeof document !== 'undefined' && Boolean(document.head);
 }
 
 function isCssArtifact(value: unknown): value is CipoCssArtifact {
-  return isPlainObject(value) && value.kind === "cipo.css";
+  return isPlainObject(value) && value.kind === 'cipo.css';
+}
+
+function isInlineCssArtifact(value: unknown): value is CipoInlineCssArtifact {
+  return isPlainObject(value) && value.kind === 'cipo.inline-css';
 }
 
 function isInjectGlobalOptions(value: unknown): value is CipoInjectGlobalOptions {
-  return isPlainObject(value) && "important" in value;
+  return isPlainObject(value) && ('important' in value || 'layer' in value);
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    return false;
-  }
-
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
   const prototype = Object.getPrototypeOf(value);
-
   return prototype === Object.prototype || prototype === null;
 }
 
 function isElement(value: unknown): value is Element {
-  return typeof Element !== "undefined" && value instanceof Element;
+  return typeof Element !== 'undefined' && value instanceof Element;
 }
 
 function isNode(value: unknown): value is Node {
-  return typeof Node !== "undefined" && value instanceof Node;
+  return typeof Node !== 'undefined' && value instanceof Node;
 }
 
 function isPseudoName(name: string): boolean {
   switch (name) {
-    case "hover":
-    case "focus":
-    case "active":
-    case "disabled":
-    case "checked":
-    case "focus-visible":
-    case "focus-within":
-    case "visited":
-    case "first-child":
-    case "last-child":
-    case "before":
-    case "after":
+    case 'hover':
+    case 'focus':
+    case 'active':
+    case 'disabled':
+    case 'checked':
+    case 'focus-visible':
+    case 'focus-within':
+    case 'visited':
+    case 'first-child':
+    case 'last-child':
+    case 'before':
+    case 'after':
       return true;
     default:
       return false;
   }
+}
+
+function isPlainNumber(value: string): boolean {
+  return /^-?\d*\.?\d+$/.test(value);
+}
+
+function isColorLike(value: string): boolean {
+  return value.startsWith('$colors.') || value.startsWith('$theme.colors.') || value.startsWith('#') || value.startsWith('rgb') || value.startsWith('hsl') || value.startsWith('oklch') || value.startsWith('oklab') || value === 'transparent' || value === 'currentColor';
 }
 
 /* ============================================================================
@@ -2524,7 +2920,7 @@ export const cipo = createCipoCallable();
  * Browser Global Install
  * ========================================================================== */
 
-if (typeof window !== "undefined") {
+if (typeof window !== 'undefined') {
   window.Cipo = createBrowserGlobal();
   window.RodK = window.Cipo;
 }
