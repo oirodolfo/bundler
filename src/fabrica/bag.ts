@@ -1,11 +1,11 @@
-import { SVG_NAMESPACE, SVG_TAGS } from "@/constants";
-import { applyCss } from "@/css";
-import { disposeTree } from "@/dom-cleanup";
-import { html, mount, render } from "@/dom";
-import { isDomElement } from "@/guards";
-import { applyProps } from "@/props";
-import type { CssInput, DomBag, DomBagOptions, RenderValue } from "@/types";
-import { config } from "@/install-state";
+import { SVG_NAMESPACE, SVG_TAGS } from "./constants";
+import { applyCss } from "./css";
+import { disposeTree } from "./dom-cleanup";
+import { html, mount, render } from "./dom";
+import { isDomElement } from "./guards";
+import { applyProps } from "./props";
+import type { CssInput, DomBag, DomBagOptions, RenderValue } from "./types";
+import { config } from "./install-state";
 
 /**
  * Creates or queries a fluent DOM bag.
