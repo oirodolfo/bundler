@@ -1,4 +1,4 @@
-import type { RawHtml } from "@/types";
+import type { RawHtml } from "./types";
 
 /**
  * Creates a trusted raw HTML wrapper.
