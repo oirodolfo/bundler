@@ -1,5 +1,5 @@
-export { createFabricaApi } from "@/public-api";
-export type { FabricaApi } from "@/public-api";
+export { createFabricaApi } from "./public-api";
+export type { FabricaApi } from "./public-api";
 export type {
   Cleanup,
   Component,
@@ -12,18 +12,18 @@ export type {
   RenderValue,
   RepeatContext,
   Signal,
-} from "@/types";
+} from "./types";
 
-export { $ } from "@/bag";
-export { css } from "@/css";
-export { component } from "@/component";
-export { debug, setDebug } from "@/debug";
-export { classMap, ref, repeat, styleMap, when } from "@/directives";
-export { html, mount, render } from "@/dom";
-export { rawHtml } from "@/raw";
-export { batch, computed, effect, memo, onCleanup, signal, untrack } from "@/reactivity";
+export { $ } from "./bag";
+export { css } from "./css";
+export { component } from "./component";
+export { debug, setDebug } from "./debug";
+export { classMap, ref, repeat, styleMap, when } from "./directives";
+export { html, mount, render } from "./dom";
+export { rawHtml } from "./raw";
+export { batch, computed, effect, memo, onCleanup, signal, untrack } from "./reactivity";
 
-import { createFabricaApi } from "@/public-api";
+import { createFabricaApi } from "./public-api";
 
 /** Default singleton API. */
 const Fabrica = createFabricaApi();
