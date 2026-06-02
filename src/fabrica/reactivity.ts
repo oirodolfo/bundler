@@ -1,5 +1,5 @@
-import { debugState } from "@/debug";
-import type { Cleanup, CleanupRegistrar, EffectOptions, EffectRunner, Signal } from "@/types";
+import { debugState } from "./debug";
+import type { Cleanup, CleanupRegistrar, EffectOptions, EffectRunner, Signal } from "./types";
 
 /** Queued async effects waiting for the next microtask flush. */
 const effectQueue = new Set<EffectRunner>();
