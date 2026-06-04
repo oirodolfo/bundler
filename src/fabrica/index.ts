@@ -1,11 +1,44 @@
-export function html(strings: TemplateStringsArray, ...values: unknown[]): DocumentFragment {
-  const template = document.createElement("template");
-  template.innerHTML = strings.reduce((output, chunk, index) => `${output}${chunk}${String(values[index] ?? "")}`, "");
-  return template.content.cloneNode(true) as DocumentFragment;
+export { createFabricaApi } from "./public-api";
+export type { FabricaApi } from "./public-api";
+export type {
+  Cleanup,
+  Component,
+  ComponentContext,
+  DebugSnapshot,
+  Directive,
+  DomBag,
+  InstallOptions,
+  RawHtml,
+  RenderValue,
+  RepeatContext,
+  Signal,
+} from "./types";
+
+export { $ } from "./bag";
+export { css } from "./css";
+export { component } from "./component";
+export { debug, setDebug } from "./debug";
+export { classMap, ref, repeat, styleMap, when } from "./directives";
+export { html, mount, render } from "./dom";
+export { rawHtml } from "./raw";
+export { batch, computed, effect, memo, onCleanup, signal, untrack } from "./reactivity";
+
+import { createFabricaApi } from "./public-api";
+
+/** Default singleton API. */
+const Fabrica = createFabricaApi();
+
+if (typeof globalThis !== "undefined") {
+  Fabrica.install();
 }
-export function render(container: Element, value: Node): () => void {
-  container.replaceChildren(value);
-  return () => container.replaceChildren();
+
+export default Fabrica;
+
+declare global {
+  // eslint-disable-next-line no-var
+  var Fabrica: import("./public-api").FabricaApi | undefined;
+  // eslint-disable-next-line no-var
+  var $: unknown;
+  // eslint-disable-next-line no-var
+  var $el: unknown;
 }
-export const version = "1.0.0";
-export default { html, render, version };
