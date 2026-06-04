@@ -9,6 +9,9 @@
     "node": ">=24.0.0",
     "pnpm": ">=11.5.1"
   },
+  "pnpm": {
+  "onlyBuiltDependencies": ["esbuild"]
+  },
   "scripts": {
     "clean": "node -e \"fs.rmSync('dist', { recursive: true, force: true })\"",
     "build": "tsx scripts/build.ts",
