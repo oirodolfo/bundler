@@ -1,23 +1,27 @@
 {
-  "name": "private-ts-bundler-publisher",
+  "name": "rod-browser-toolbox",
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Bundle a private TypeScript entrypoint and publish browser-ready JavaScript to GitHub Releases, Pages, and optionally a public Gist.",
+  "description": "Root-entry browser bundle publisher that emits one IIFE global per root source file, plus ESM builds, docs, and a generated landing page.",
+  "packageManager": "pnpm@11.5.1",
+  "engines": {
+    "node": ">=24.0.0",
+    "pnpm": ">=11.5.1"
+  },
   "scripts": {
+    "clean": "node -e \"fs.rmSync('dist', { recursive: true, force: true })\"",
     "build": "tsx scripts/build.ts",
-    "publish:gist": "tsx scripts/publish-gist.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "clean": "node -e \"fs.rmSync('dist', { recursive: true, force: true })\""
-  },
-  "dependencies": {
-    "esbuild": "^0.25.5"
+    "verify": "pnpm typecheck && pnpm test && pnpm build",
+    "publish:gist": "tsx scripts/publish-gist.ts"
   },
   "devDependencies": {
-    "@types/node": "^22.15.29",
-    "tsx": "^4.19.4",
-    "typescript": "^5.8.3",
-    "vitest": "^3.1.4"
+    "@types/node": "25.9.1",
+    "esbuild": "0.28.0",
+    "tsx": "4.22.4",
+    "typescript": "6.0.3",
+    "vitest": "4.1.8"
   }
 }
