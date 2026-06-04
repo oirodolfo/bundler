@@ -10,7 +10,7 @@
     "pnpm": ">=11.5.1"
   },
   "pnpm": {
-  "onlyBuiltDependencies": ["esbuild"]
+    "onlyBuiltDependencies": ["esbuild"]
   },
   "scripts": {
     "clean": "node -e \"fs.rmSync('dist', { recursive: true, force: true })\"",
