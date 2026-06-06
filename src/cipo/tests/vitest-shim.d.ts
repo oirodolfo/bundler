@@ -7,3 +7,8 @@ declare module 'vitest' {
   }
   export function beforeEach(callback: () => void): void
 }
+
+
+declare module 'vitest/config' {
+  export function defineConfig(config: unknown): unknown
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach } from 'vitest'
-import { css, getCssText, inline, registerAlias, reset, setup } from '../src/index'
+import { css, getCssText, inline, isAtomicCssArtifact, registerAlias, reset, setup } from '../src/index'
 
 describe('Cipó next', () => {
   beforeEach(() => {
@@ -24,6 +24,8 @@ describe('Cipó next', () => {
 
   it('supports token inference and property aliases', () => {
     const card = css`px:4;bg:$brand;rounded:$xl;`
+    expect(isAtomicCssArtifact(card)).toBe(true)
+    if (!isAtomicCssArtifact(card)) throw new Error('Expected atomic artifact')
     expect(card.compiledCss).toContain('padding-inline')
     expect(card.compiledCss).toContain('var(--test-colors-brand)')
   })
@@ -31,6 +33,8 @@ describe('Cipó next', () => {
   it('supports standalone aliases', () => {
     registerAlias('demoGlass', 'bg:alpha($panel / 50%);')
     const card = css`demoGlass;`
+    expect(isAtomicCssArtifact(card)).toBe(true)
+    if (!isAtomicCssArtifact(card)) throw new Error('Expected atomic artifact')
     expect(card.compiledCss).toContain('color-mix')
   })
 
@@ -42,6 +46,8 @@ describe('Cipó next', () => {
 
   it('supports variants', () => {
     const button = css`x:hover{bg:$brand;}x:md{px:6;}`
+    expect(isAtomicCssArtifact(button)).toBe(true)
+    if (!isAtomicCssArtifact(button)) throw new Error('Expected atomic artifact')
     expect(button.compiledCss).toContain(':hover')
     expect(button.compiledCss).toContain('@media')
   })
