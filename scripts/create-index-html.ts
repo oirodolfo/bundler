@@ -67,8 +67,8 @@ function createToolCard(entry: RootEntry, outputs: string[], examples: SourceExa
     .map((file) => `<a href="./${escapeHtml(file)}">${escapeHtml(file)}</a>`)
     .join("");
 
-  const requireLine = `// @require https://OWNER.github.io/REPO/${entry.name}.iife.js\nconst ${entry.globalName} = window.${entry.globalName};`;
-  const importLine = `import * as ${entry.globalName} from "https://OWNER.github.io/REPO/${entry.name}.esm.js";`;
+  const requireLine = `// @require https://rodkisten.github.io/bundler/${entry.name}.iife.js\nconst ${entry.globalName} = window.${entry.globalName};`;
+  const importLine = `import * as ${entry.globalName} from "https://rodkisten.github.io/bundler/${entry.name}.esm.js";`;
   const tags = entry.tool.tags.map((tag) => `<span>${escapeHtml(tag)}</span>`).join("");
   const exampleBlocks = examples.map(createExampleBlock).join("");
 
@@ -88,7 +88,7 @@ function createToolCard(entry: RootEntry, outputs: string[], examples: SourceExa
           <pre><code class="language-js">${escapeHtml(importLine)}</code></pre>
         </div>
 
-        ${exampleBlocks ? `<details class="examples" open><summary>Examples from every source file</summary>${exampleBlocks}</details>` : ""}
+        ${exampleBlocks ? `<details class="examples" open="false"><summary>Examples from every source file</summary>${exampleBlocks}</details>` : ""}
       </article>`;
 }
 
@@ -371,8 +371,8 @@ pre code {
   padding: 14px 16px;
   font-size: 12px;
   line-height: 1.65;
-  white-space: pre;
-  word-break: normal;
+  white-space: pre-wrap;
+  word-break: wrap;
   overflow-wrap: normal;
   tab-size: 2;
 }
@@ -386,7 +386,7 @@ pre code {
 .examples summary {
   cursor: pointer;
   color: var(--green);
-  font-weight: 900;
+  font-weight: 700;
 }
 
 .example-block {
