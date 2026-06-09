@@ -35,6 +35,14 @@ export type RenderValue =
   | DomBag;
 
 /** Writable fine-grained signal. */
+export type SignalOptions<Value> = {
+  /** Custom equality check. Pass false to always notify subscribers. */
+  equals?: false | ((previousValue: Value, nextValue: Value) => boolean);
+};
+
+/** Reactive scheduler mode used by the fine-grained effect queue. */
+export type SchedulerMode = "microtask" | "raf" | "idle";
+
 export type Signal<Value> = (() => Value) & {
   /** Stores a new value and notifies subscribers when it changed. */
   set(nextValue: Value): void;
@@ -69,6 +77,8 @@ export type DebugSnapshot = {
   updates: number;
   components: number;
   delegatedEvents: number;
+  reconciliations: number;
+  virtualWindows: number;
 };
 
 /** A trusted raw HTML wrapper. */
@@ -112,6 +122,13 @@ export type RepeatOptions = {
   empty?: () => RenderValue;
 };
 
+/** Virtual repeat options for large lists. */
+export type VirtualRepeatOptions = RepeatOptions & {
+  itemHeight?: number;
+  overscan?: number;
+  height?: number | string;
+};
+
 /** Element ref directive. */
 export type RefDirective = Directive & {
   readonly kind: "ref";
@@ -128,6 +145,18 @@ export type ClassMapDirective = Directive & {
 export type StyleMapDirective = Directive & {
   readonly kind: "styleMap";
   value: Record<string, unknown>;
+};
+
+/** Keyed repeat with viewport windowing. */
+export type VirtualRepeatDirective<Item, Key extends PropertyKey> = Directive & {
+  readonly kind: "virtualRepeat";
+  items: readonly Item[] | Signal<readonly Item[]> | ReactiveExpression<readonly Item[]>;
+  key: (item: Item, index: number) => Key;
+  render: (context: RepeatContext<Item, Key>) => RenderValue;
+  empty?: () => RenderValue;
+  itemHeight: number;
+  overscan: number;
+  height: number | string;
 };
 
 /** All supported map directives. */

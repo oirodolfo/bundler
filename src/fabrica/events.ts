@@ -4,8 +4,8 @@ import { isSignal } from "./guards";
 import { effect } from "./reactivity";
 import type { EventBindingConfig, RenderValue } from "./types";
 
-/** Documents that already have a delegated listener for each event. */
-const delegatedEvents = new WeakMap<Document, Set<string>>();
+/** Roots that already have a delegated listener for each event. */
+const delegatedEvents = new WeakMap<EventTarget, Set<string>>();
 
 /**
  * Binds an event listener with modifiers.
@@ -13,6 +13,7 @@ const delegatedEvents = new WeakMap<Document, Set<string>>();
  * @param element - Target element.
  * @param rawName - Event name and modifiers, without leading @.
  * @param value - Handler or signal of handler.
+ * @returns void.
  *
  * @example
  * ```ts
@@ -116,31 +117,47 @@ function createEventHandler(
 }
 
 /**
- * Binds an event through document-level delegation.
+ * Binds an event through root-level delegation.
  *
  * @param element - Target element.
  * @param eventConfig - Parsed event configuration.
  * @param value - Handler value.
+ * @returns void.
  */
 function bindDelegatedEvent(element: Element, eventConfig: EventBindingConfig, value: RenderValue): void {
-  const handler = isSignal(value) ? value() : value;
-
-  if (typeof handler !== "function") {
-    return;
-  }
-
+  let previousHandler: ((event: Event) => void) | null = null;
   const target = element as Element & {
     __fabricaDelegatedHandlers?: Record<string, (event: Event) => void>;
   };
 
-  target.__fabricaDelegatedHandlers ??= {};
-  target.__fabricaDelegatedHandlers[eventConfig.name] = createEventHandler(
-    element,
-    handler as (event: Event) => void,
-    eventConfig,
-  );
+  const update = (): void => {
+    const handler = isSignal(value) ? value() : value;
 
-  ensureDelegatedEvent(document, eventConfig.name);
+    if (typeof handler !== "function") {
+      if (target.__fabricaDelegatedHandlers) {
+        delete target.__fabricaDelegatedHandlers[eventConfig.name];
+      }
+      previousHandler = null;
+      return;
+    }
+
+    const wrapped = createEventHandler(element, handler as (event: Event) => void, eventConfig);
+
+    if (previousHandler && (previousHandler as typeof previousHandler & { original?: unknown }).original === handler) {
+      return;
+    }
+
+    target.__fabricaDelegatedHandlers ??= {};
+    target.__fabricaDelegatedHandlers[eventConfig.name] = wrapped;
+    previousHandler = wrapped;
+    ensureDelegatedEvent(getDelegationRoot(element), eventConfig.name);
+  };
+
+  const dispose = isSignal(value) ? effect(update) : (update(), null);
+
+  if (dispose) {
+    registerCleanup(element, dispose);
+  }
 
   registerCleanup(element, () => {
     if (target.__fabricaDelegatedHandlers) {
@@ -150,12 +167,29 @@ function bindDelegatedEvent(element: Element, eventConfig: EventBindingConfig, v
 }
 
 /**
- * Installs a document-level delegated listener once per event name.
+ * Gets the best delegation root for a node.
  *
- * @param root - Document root.
- * @param eventName - Event name.
+ * @param element - Target element.
+ * @returns Event target root.
+ *
+ * @example
+ * ```ts
+ * const root = getDelegationRoot(button);
+ * ```
  */
-function ensureDelegatedEvent(root: Document, eventName: string): void {
+function getDelegationRoot(element: Element): Document | ShadowRoot {
+  const root = element.getRootNode?.();
+  return root instanceof ShadowRoot ? root : element.ownerDocument || document;
+}
+
+/**
+ * Installs a delegated listener once per root and event name.
+ *
+ * @param root - Delegation root.
+ * @param eventName - Event name.
+ * @returns void.
+ */
+function ensureDelegatedEvent(root: Document | ShadowRoot, eventName: string): void {
   let events = delegatedEvents.get(root);
 
   if (!events) {
@@ -171,24 +205,55 @@ function ensureDelegatedEvent(root: Document, eventName: string): void {
   debugState.delegatedEvents += 1;
 
   root.addEventListener(eventName, (event) => {
+    const path = typeof event.composedPath === "function" ? event.composedPath() : [];
+
+    if (path.length > 0) {
+      for (let index = 0; index < path.length; index += 1) {
+        const current = path[index];
+
+        if (current === root) {
+          return;
+        }
+
+        if (runDelegatedHandler(current, eventName, event)) {
+          return;
+        }
+      }
+
+      return;
+    }
+
     let current: Node | null = event.target as Node | null;
 
     while (current && current !== root) {
-      const handlers = (current as Element & {
-        __fabricaDelegatedHandlers?: Record<string, (event: Event) => void>;
-      }).__fabricaDelegatedHandlers;
-
-      const delegatedHandler = handlers?.[eventName];
-
-      if (delegatedHandler) {
-        delegatedHandler(event);
-
-        if (event.cancelBubble) {
-          return;
-        }
+      if (runDelegatedHandler(current, eventName, event)) {
+        return;
       }
 
       current = current.parentNode;
     }
   });
+}
+
+/**
+ * Runs one delegated handler when present.
+ *
+ * @param current - Current composed path item.
+ * @param eventName - Event name.
+ * @param event - Runtime event.
+ * @returns Whether propagation should stop.
+ */
+function runDelegatedHandler(current: unknown, eventName: string, event: Event): boolean {
+  const handlers = (current as Element & {
+    __fabricaDelegatedHandlers?: Record<string, (runtimeEvent: Event) => void>;
+  })?.__fabricaDelegatedHandlers;
+
+  const delegatedHandler = handlers?.[eventName];
+
+  if (!delegatedHandler) {
+    return false;
+  }
+
+  delegatedHandler(event);
+  return Boolean(event.cancelBubble);
 }

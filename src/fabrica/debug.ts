@@ -16,6 +16,8 @@ export const debugState: DebugSnapshot = {
   updates: 0,
   components: 0,
   delegatedEvents: 0,
+  reconciliations: 0,
+  virtualWindows: 0,
 };
 
 /**

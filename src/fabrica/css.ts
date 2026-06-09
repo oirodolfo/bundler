@@ -117,20 +117,58 @@ export function parseCssDeclarations(cssText: string): CssDeclaration[] {
 
   const declarations: CssDeclaration[] = [];
   let start = 0;
+  let depth = 0;
+  let quote: '"' | "'" | "" = "";
+  let escaped = false;
 
   for (let index = 0; index <= cssText.length; index += 1) {
-    if (index !== cssText.length && cssText.charCodeAt(index) !== 59) {
+    const char = cssText[index] ?? ";";
+
+    if (quote) {
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+
+      if (char === "\\") {
+        escaped = true;
+        continue;
+      }
+
+      if (char === quote) {
+        quote = "";
+      }
+
+      continue;
+    }
+
+    if (char === '"' || char === "'") {
+      quote = char;
+      continue;
+    }
+
+    if (char === "(" || char === "[" || char === "{") {
+      depth += 1;
+      continue;
+    }
+
+    if (char === ")" || char === "]" || char === "}") {
+      depth = Math.max(0, depth - 1);
+      continue;
+    }
+
+    if (index !== cssText.length && (char !== ";" || depth > 0)) {
       continue;
     }
 
     const chunk = cssText.slice(start, index).trim();
     start = index + 1;
 
-    if (!chunk) {
+    if (!chunk || chunk.includes("{") || chunk.includes("}")) {
       continue;
     }
 
-    const colonIndex = chunk.indexOf(":");
+    const colonIndex = findTopLevelColon(chunk);
 
     if (colonIndex <= 0) {
       continue;
@@ -152,6 +190,67 @@ export function parseCssDeclarations(cssText: string): CssDeclaration[] {
 
   declarationCache.set(cssText, declarations);
   return declarations;
+}
+
+/**
+ * Finds a declaration colon without being fooled by quoted URLs or functions.
+ *
+ * @param chunk - Declaration chunk.
+ * @returns Colon index or -1.
+ *
+ * @example
+ * ```ts
+ * findTopLevelColon("background: linear-gradient(red, blue)");
+ * // 10
+ * ```
+ */
+function findTopLevelColon(chunk: string): number {
+  let depth = 0;
+  let quote: '"' | "'" | "" = "";
+  let escaped = false;
+
+  for (let index = 0; index < chunk.length; index += 1) {
+    const char = chunk[index];
+
+    if (quote) {
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+
+      if (char === "\\") {
+        escaped = true;
+        continue;
+      }
+
+      if (char === quote) {
+        quote = "";
+      }
+
+      continue;
+    }
+
+    if (char === '"' || char === "'") {
+      quote = char;
+      continue;
+    }
+
+    if (char === "(" || char === "[") {
+      depth += 1;
+      continue;
+    }
+
+    if (char === ")" || char === "]") {
+      depth = Math.max(0, depth - 1);
+      continue;
+    }
+
+    if (char === ":" && depth === 0) {
+      return index;
+    }
+  }
+
+  return -1;
 }
 
 /**

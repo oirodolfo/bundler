@@ -7,7 +7,10 @@ import { applyClassMap, applyStyleMap } from "./maps";
 import { batch, effect, signal } from "./reactivity";
 import { comparePathsReverse, getCompiledTemplate, resolvePath } from "./template";
 import { hasReactiveValue, readValue } from "./value";
-import type { Directive, DirectiveController, RenderValue, RepeatDirective, RepeatRecord, TemplatePart, WhenDirective } from "./types";
+import type { Directive, DirectiveController, RenderValue, RepeatDirective, RepeatRecord, TemplatePart, VirtualRepeatDirective, WhenDirective } from "./types";
+
+/** Persistent root render parts keyed by container. */
+const renderStates = new WeakMap<Node, { part: ReturnType<typeof createChildPart>; dispose: () => void }>();
 
 /**
  * Creates DOM from a tagged template.
@@ -44,14 +47,30 @@ export function html(strings: TemplateStringsArray, ...values: RenderValue[]): D
  * ```
  */
 export function render(container: Element | DocumentFragment | ShadowRoot, value: RenderValue): () => void {
-  disposeTree(container);
-  container.replaceChildren();
-  appendValue(container, value);
+  let state = renderStates.get(container);
 
-  return () => {
+  if (!state) {
     disposeTree(container);
     container.replaceChildren();
-  };
+
+    const marker = document.createComment("fabrica:render");
+    container.appendChild(marker);
+
+    const part = createChildPart(marker);
+    const dispose = (): void => {
+      disposeRange(part.start, part.end);
+      removeRange(part.start, part.end);
+      renderStates.delete(container);
+    };
+
+    state = { part, dispose };
+    renderStates.set(container, state);
+  }
+
+  debugState.reconciliations += 1;
+  state.part.set(value);
+
+  return state.dispose;
 }
 
 /**
@@ -363,7 +382,7 @@ function bindAttributePart(node: Node, rawName: string, value: RenderValue | und
 
 function bindPlainAttributePart(element: Element, name: string, value: RenderValue | undefined): void {
   let previous: unknown = Symbol("initial");
-  let mapState: { keys: Set<string> } | null = null;
+  let mapState: ReturnType<typeof applyClassMap> | ReturnType<typeof applyStyleMap> | null = null;
 
   const update = (): void => {
     const next = readValue(value);
@@ -474,6 +493,10 @@ function createDirectiveController(start: Comment, end: Comment, directive: Dire
 
   if (directive.kind === "repeat") {
     return createRepeatController(start, end);
+  }
+
+  if (directive.kind === "virtualRepeat") {
+    return createVirtualRepeatController(start, end);
   }
 
   return {
@@ -589,6 +612,128 @@ function createRepeatController(start: Comment, end: Comment): DirectiveControll
       }
 
       records.clear();
+      clearRange(start, end);
+    },
+  };
+}
+
+function createVirtualRepeatController(start: Comment, end: Comment): DirectiveController {
+  const records = new Map<PropertyKey, RepeatRecord>();
+  let currentDirective: VirtualRepeatDirective<unknown, PropertyKey> | null = null;
+  let disposeItems: (() => void) | null = null;
+  let scroller: HTMLDivElement | null = null;
+  let topSpacer: HTMLDivElement | null = null;
+  let contentStart: Comment | null = null;
+  let contentEnd: Comment | null = null;
+  let bottomSpacer: HTMLDivElement | null = null;
+  let scrollFrame = 0;
+
+  const ensureNodes = (): void => {
+    if (scroller || !end.parentNode || !currentDirective) {
+      return;
+    }
+
+    scroller = document.createElement("div");
+    topSpacer = document.createElement("div");
+    bottomSpacer = document.createElement("div");
+    contentStart = document.createComment("fabrica:virtual:start");
+    contentEnd = document.createComment("fabrica:virtual:end");
+
+    scroller.style.overflow = "auto";
+    scroller.style.maxHeight = typeof currentDirective.height === "number" ? `${currentDirective.height}px` : String(currentDirective.height);
+    scroller.style.contain = "content";
+    topSpacer.style.pointerEvents = "none";
+    bottomSpacer.style.pointerEvents = "none";
+
+    scroller.append(topSpacer, contentStart, contentEnd, bottomSpacer);
+    end.parentNode.insertBefore(scroller, end);
+
+    scroller.addEventListener("scroll", () => {
+      if (scrollFrame) {
+        return;
+      }
+
+      scrollFrame = requestAnimationFrame(() => {
+        scrollFrame = 0;
+        updateWindow();
+      });
+    }, { passive: true });
+  };
+
+  const updateWindow = (): void => {
+    if (!currentDirective) {
+      return;
+    }
+
+    ensureNodes();
+
+    if (!scroller || !topSpacer || !contentStart || !contentEnd || !bottomSpacer) {
+      return;
+    }
+
+    const resolvedItems = readValue(currentDirective.items);
+    const items = Array.isArray(resolvedItems) ? resolvedItems : [];
+    const itemHeight = Math.max(1, currentDirective.itemHeight);
+    const viewportHeight = scroller.clientHeight || (typeof currentDirective.height === "number" ? currentDirective.height : itemHeight * 12);
+    const firstVisible = Math.floor(scroller.scrollTop / itemHeight);
+    const visibleCount = Math.ceil(viewportHeight / itemHeight);
+    const from = Math.max(0, firstVisible - currentDirective.overscan);
+    const to = Math.min(items.length, firstVisible + visibleCount + currentDirective.overscan);
+    const visibleItems = items.slice(from, to);
+
+    debugState.virtualWindows += 1;
+    topSpacer.style.height = `${from * itemHeight}px`;
+    bottomSpacer.style.height = `${Math.max(0, items.length - to) * itemHeight}px`;
+
+    const visibleDirective: RepeatDirective<unknown, PropertyKey> = {
+      __kind: "directive",
+      kind: "repeat",
+      items: visibleItems,
+      key: (item, visibleIndex) => currentDirective?.key(item, from + visibleIndex) ?? visibleIndex,
+      render: currentDirective.render,
+      empty: currentDirective.empty,
+    };
+
+    updateRepeat(contentStart, contentEnd, records, visibleDirective);
+  };
+
+  return {
+    kind: "virtualRepeat",
+    update(nextDirective: Directive): void {
+      currentDirective = nextDirective as VirtualRepeatDirective<unknown, PropertyKey>;
+      ensureNodes();
+
+      if (disposeItems) {
+        updateWindow();
+        return;
+      }
+
+      disposeItems = hasReactiveValue(currentDirective.items) ? effect(updateWindow) : (updateWindow(), null);
+
+      if (disposeItems) {
+        registerCleanup(start, disposeItems);
+      }
+    },
+    dispose(): void {
+      disposeItems?.();
+      disposeItems = null;
+
+      for (const record of records.values()) {
+        disposeRange(record.start, record.end);
+      }
+
+      records.clear();
+
+      if (scroller) {
+        disposeTree(scroller);
+        scroller.remove();
+      }
+
+      scroller = null;
+      topSpacer = null;
+      contentStart = null;
+      contentEnd = null;
+      bottomSpacer = null;
       clearRange(start, end);
     },
   };

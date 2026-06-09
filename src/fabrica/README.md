@@ -553,3 +553,50 @@ src/
 - The inline CSS parser is for declarations, not nested CSS rules. Use a `<style>` tag for full CSS text.
 - No compiler means template context detection is still regex-based for attribute position, though improved and covered by tests.
 
+
+---
+
+## New performance APIs
+
+### `configureScheduler(options)`
+
+```ts
+import { configureScheduler } from "@rod/fabricadom";
+
+configureScheduler({ mode: "raf", maxFlushIterations: 500 });
+```
+
+Use `"microtask"` for tiny updates, `"raf"` for UI-heavy work, and `"idle"` for background-ish updates.
+
+### `signal(value, { equals })`
+
+```ts
+const state = signal({ open: false }, { equals: false });
+```
+
+Pass `equals: false` when you intentionally want every `set()` to notify subscribers.
+
+### `virtualRepeat()`
+
+```ts
+import { html, signal, virtualRepeat } from "@rod/fabricadom";
+
+const logs = signal(Array.from({ length: 10000 }, (_, id) => ({ id, message: `Log ${id}` })));
+
+const view = html`
+  ${virtualRepeat(
+    logs,
+    (log) => log.id,
+    ({ item }) => html`<article>${() => item().message}</article>`,
+    { itemHeight: 34, overscan: 10, height: 420 },
+  )}
+`;
+```
+
+### Safer HTML helpers
+
+```ts
+html`${html.sanitized(userSuppliedHtml)}`;
+html`${html.trusted(serverSanitizedHtml)}`;
+html`${html.unsafe(compilerOwnedHtml)}`;
+```

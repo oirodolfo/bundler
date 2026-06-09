@@ -8,6 +8,8 @@ import type {
   RepeatOptions,
   Signal,
   StyleMapDirective,
+  VirtualRepeatDirective,
+  VirtualRepeatOptions,
   WhenDirective,
 } from "./types";
 
@@ -56,6 +58,55 @@ export function repeat<Item, Key extends PropertyKey>(
   const directive = options.empty
     ? { kind: "repeat" as const, items, key, render: renderItem, empty: options.empty }
     : { kind: "repeat" as const, items, key, render: renderItem };
+
+  return createDirective(directive);
+}
+
+
+/**
+ * Creates a viewport-windowed keyed list directive for very large collections.
+ *
+ * @param items - Items array, signal, or expression.
+ * @param key - Stable key getter.
+ * @param renderItem - Item renderer.
+ * @param options - Virtualization options.
+ * @returns Virtual repeat directive.
+ *
+ * @example Render a large log list without mounting every row
+ * ```ts
+ * virtualRepeat(logs, (log) => log.id, ({ item }) => html`<article>${() => item().message}</article>`, {
+ *   itemHeight: 34,
+ *   overscan: 8,
+ *   height: 420,
+ * });
+ * ```
+ */
+export function virtualRepeat<Item, Key extends PropertyKey>(
+  items: readonly Item[] | Signal<readonly Item[]> | (() => readonly Item[]),
+  key: (item: Item, index: number) => Key,
+  renderItem: (context: RepeatContext<Item, Key>) => RenderValue,
+  options: VirtualRepeatOptions = {},
+): VirtualRepeatDirective<Item, Key> {
+  const directive = options.empty
+    ? {
+        kind: "virtualRepeat" as const,
+        items,
+        key,
+        render: renderItem,
+        empty: options.empty,
+        itemHeight: options.itemHeight ?? 32,
+        overscan: options.overscan ?? 8,
+        height: options.height ?? 360,
+      }
+    : {
+        kind: "virtualRepeat" as const,
+        items,
+        key,
+        render: renderItem,
+        itemHeight: options.itemHeight ?? 32,
+        overscan: options.overscan ?? 8,
+        height: options.height ?? 360,
+      };
 
   return createDirective(directive);
 }

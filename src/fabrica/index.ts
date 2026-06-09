@@ -12,16 +12,19 @@ export type {
   RenderValue,
   RepeatContext,
   Signal,
+  SignalOptions,
+  SchedulerMode,
+  VirtualRepeatOptions,
 } from "./types";
 
 export { $ } from "./bag";
 export { css } from "./css";
 export { component } from "./component";
 export { debug, setDebug } from "./debug";
-export { classMap, ref, repeat, styleMap, when } from "./directives";
+export { classMap, ref, repeat, styleMap, virtualRepeat, when } from "./directives";
 export { html, mount, render } from "./dom";
-export { rawHtml } from "./raw";
-export { batch, computed, effect, memo, onCleanup, signal, untrack } from "./reactivity";
+export { rawHtml, sanitizedHtml, trustedHtml, unsafeHtml } from "./raw";
+export { batch, computed, configureScheduler, effect, memo, onCleanup, signal, untrack } from "./reactivity";
 
 import { createFabricaApi } from "./public-api";
 

@@ -1,24 +1,49 @@
 import { debugState } from "./debug";
-import type { Cleanup, CleanupRegistrar, EffectOptions, EffectRunner, Signal } from "./types";
+import type { Cleanup, CleanupRegistrar, EffectOptions, EffectRunner, Signal, SignalOptions, SchedulerMode } from "./types";
 
-/** Queued async effects waiting for the next microtask flush. */
+/** Queued async effects waiting for the next scheduler flush. */
 const effectQueue = new Set<EffectRunner>();
+
+const DEFAULT_MAX_FLUSH_ITERATIONS = 1_000;
 
 let activeEffect: EffectRunner | null = null;
 let trackingEnabled = true;
 let flushQueued = false;
 let batchDepth = 0;
+let schedulerMode: SchedulerMode = "microtask";
+let maxFlushIterations = DEFAULT_MAX_FLUSH_ITERATIONS;
+
+/**
+ * Configures the global reactive scheduler.
+ *
+ * @param options - Scheduler options.
+ * @returns void.
+ *
+ * @example Use animation-frame scheduling for heavy UI work
+ * ```ts
+ * configureScheduler({ mode: "raf", maxFlushIterations: 500 });
+ * ```
+ */
+export function configureScheduler(options: { mode?: SchedulerMode; maxFlushIterations?: number } = {}): void {
+  if (options.mode) {
+    schedulerMode = options.mode;
+  }
+
+  if (typeof options.maxFlushIterations === "number" && Number.isFinite(options.maxFlushIterations)) {
+    maxFlushIterations = Math.max(1, Math.floor(options.maxFlushIterations));
+  }
+}
 
 /**
  * Creates a fine-grained writable signal.
  *
  * @remarks
- * This replaces object-style `{ value }` signals because callable signals are
- * faster to read and harder to confuse with plain values. `set()` stores exactly
- * what you pass, including functions. Use `update()` when you want updater
- * semantics.
+ * Callable signals keep reads cheap, and custom equality lets callers avoid
+ * unnecessary updates for structural values. Pass `{ equals: false }` to always
+ * notify subscribers, useful for mutable objects owned outside Fabrica.
  *
  * @param initialValue - Initial signal value.
+ * @param options - Optional equality behavior.
  * @returns Signal reader with mutation helpers.
  *
  * @example Basic counter
@@ -29,10 +54,26 @@ let batchDepth = 0;
  * console.log(count());
  * // 2
  * ```
+ *
+ * @example Always notify for externally mutated state
+ * ```ts
+ * const state = signal({ open: false }, { equals: false });
+ * state.peek().open = true;
+ * state.set(state.peek());
+ * ```
  */
-export function signal<Value>(initialValue: Value): Signal<Value> {
+export function signal<Value>(initialValue: Value, options: SignalOptions<Value> = {}): Signal<Value> {
   let value = initialValue;
   const subscribers = new Set<EffectRunner>();
+  const equals = options.equals ?? Object.is;
+
+  function didNotChange(previousValue: Value, nextValue: Value): boolean {
+    if (equals === false) {
+      return false;
+    }
+
+    return equals(previousValue, nextValue);
+  }
 
   function read(): Value {
     if (activeEffect && trackingEnabled && !subscribers.has(activeEffect)) {
@@ -44,7 +85,7 @@ export function signal<Value>(initialValue: Value): Signal<Value> {
   }
 
   read.set = (nextValue: Value): void => {
-    if (Object.is(value, nextValue)) {
+    if (didNotChange(value, nextValue)) {
       return;
     }
 
@@ -80,6 +121,7 @@ export function signal<Value>(initialValue: Value): Signal<Value> {
  * Registers cleanup inside the currently running effect.
  *
  * @param cleanup - Cleanup callback.
+ * @returns void.
  *
  * @example Interval cleanup
  * ```ts
@@ -99,11 +141,6 @@ export function onCleanup(cleanup: Cleanup): void {
 
 /**
  * Runs a tracked effect and returns a disposer.
- *
- * @remarks
- * Each execution removes old dependencies before tracking new ones. This avoids
- * stale subscriptions when branches change, which is one of the easiest ways for
- * tiny reactive libraries to leak memory.
  *
  * @param callback - Reactive callback.
  * @param options - Effect options.
@@ -153,6 +190,7 @@ export function effect(callback: (cleanup: CleanupRegistrar) => void, options: E
  * Creates a derived signal.
  *
  * @param getter - Getter that may read signals.
+ * @param options - Optional equality behavior.
  * @returns Derived signal.
  *
  * @example Derived label
@@ -160,8 +198,8 @@ export function effect(callback: (cleanup: CleanupRegistrar) => void, options: E
  * const label = computed(() => `Count: ${count()}`);
  * ```
  */
-export function computed<Value>(getter: () => Value): Signal<Value> {
-  const output = signal<Value>(undefined as Value);
+export function computed<Value>(getter: () => Value, options: SignalOptions<Value> = {}): Signal<Value> {
+  const output = signal<Value>(undefined as Value, options);
 
   effect(() => {
     output.set(getter());
@@ -174,6 +212,7 @@ export function computed<Value>(getter: () => Value): Signal<Value> {
  * Alias for `computed()`.
  *
  * @param getter - Getter that may read signals.
+ * @param options - Optional equality behavior.
  * @returns Derived signal.
  *
  * @example Memo value
@@ -181,8 +220,8 @@ export function computed<Value>(getter: () => Value): Signal<Value> {
  * const expensiveLabel = memo(() => calculateLabel(source()));
  * ```
  */
-export function memo<Value>(getter: () => Value): Signal<Value> {
-  return computed(getter);
+export function memo<Value>(getter: () => Value, options: SignalOptions<Value> = {}): Signal<Value> {
+  return computed(getter, options);
 }
 
 /**
@@ -191,9 +230,9 @@ export function memo<Value>(getter: () => Value): Signal<Value> {
  * @param callback - Callback to run outside dependency tracking.
  * @returns Callback result.
  *
- * @example Snapshot read
+ * @example Read without subscribing
  * ```ts
- * const raw = untrack(() => count());
+ * const current = untrack(() => count());
  * ```
  */
 export function untrack<Value>(callback: () => Value): Value {
@@ -208,12 +247,12 @@ export function untrack<Value>(callback: () => Value): Value {
 }
 
 /**
- * Batches multiple writes into a single microtask flush.
+ * Batches signal writes into one scheduled flush.
  *
- * @param callback - Batch callback.
+ * @param callback - Callback that may write signals.
  * @returns Callback result.
  *
- * @example One flush for many writes
+ * @example Batch two writes
  * ```ts
  * batch(() => {
  *   firstName.set("Rod");
@@ -267,6 +306,7 @@ export function hasReactiveValue(value: unknown): boolean {
  * Cleans old effect dependencies and user cleanups.
  *
  * @param runner - Effect runner.
+ * @returns void.
  */
 function cleanupEffect(runner: EffectRunner): void {
   const cleanups = runner.cleanups;
@@ -290,6 +330,7 @@ function cleanupEffect(runner: EffectRunner): void {
  * Schedules or immediately runs an effect.
  *
  * @param runner - Effect runner.
+ * @returns void.
  */
 function scheduleEffect(runner: EffectRunner): void {
   if (runner.disposed) {
@@ -308,24 +349,51 @@ function scheduleEffect(runner: EffectRunner): void {
   }
 }
 
-/** Queues a single microtask flush. */
+/** Queues one scheduler flush. */
 function queueFlush(): void {
   if (flushQueued) {
     return;
   }
 
   flushQueued = true;
+
+  if (schedulerMode === "raf") {
+    requestAnimationFrame(flushEffects);
+    return;
+  }
+
+  if (schedulerMode === "idle" && "requestIdleCallback" in globalThis) {
+    (globalThis as typeof globalThis & { requestIdleCallback(callback: () => void): number }).requestIdleCallback(flushEffects);
+    return;
+  }
+
   queueMicrotask(flushEffects);
 }
 
-/** Flushes queued effects. */
+/** Flushes queued effects with a recursion guard. */
 function flushEffects(): void {
   flushQueued = false;
   debugState.flushes += 1;
 
-  for (const runner of Array.from(effectQueue)) {
-    effectQueue.delete(runner);
-    runner();
+  let iterations = 0;
+
+  while (effectQueue.size > 0) {
+    if (iterations >= maxFlushIterations) {
+      effectQueue.clear();
+      throw new Error(`[Fabrica] Effect flush exceeded ${maxFlushIterations} iterations. Check for a signal write loop inside an effect.`);
+    }
+
+    iterations += 1;
+    const queued = Array.from(effectQueue);
+    effectQueue.clear();
+
+    for (let index = 0; index < queued.length; index += 1) {
+      queued[index]?.();
+    }
+
+    if (batchDepth > 0) {
+      break;
+    }
   }
 
   if (effectQueue.size > 0 && batchDepth === 0) {

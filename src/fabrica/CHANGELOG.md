@@ -33,3 +33,20 @@
 
 - Inline string event handlers are intentionally not supported in v7.
 - Raw HTML must be explicit through `rawHtml()` or `html.raw()`.
+
+## 7.1.0
+
+### Added
+
+- Configurable signal equality via `signal(value, { equals })`.
+- Configurable reactive scheduler via `configureScheduler({ mode })`.
+- Effect flush cycle protection for recursive update loops.
+- `virtualRepeat()` directive for large keyed lists with viewport windowing.
+- Sanitized/trusted/unsafe raw HTML helpers.
+
+### Changed
+
+- `render()` now reuses a persistent root child part instead of always destroying the whole container.
+- Delegated events are now Shadow DOM aware through root-level listeners and `composedPath()`.
+- CSS declaration parsing now respects quotes and nested function parentheses.
+- `classMap()` and `styleMap()` skip unchanged values.
