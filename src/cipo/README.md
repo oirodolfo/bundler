@@ -1,66 +1,45 @@
 # Cipó Next 🌿
 
-Cipó Next is a modular semantic CSS runtime based on Rod's previous single-file implementation. It preserves the old API while adding a cleaner DSL, plugin hooks, token inference, inline styles, JIT caching, recipes and modern CSS utilities.
+Cipó is the CSS owner in the Rod browser toolbox. It provides a semantic CSS DSL, atomic class generation, full stylesheet compilation, inline style compilation, JIT caching, theme tokens, helpers, aliases, recipes and browser-friendly debug tools.
 
-## Preserved API
+Cipó does **not** own HTML rendering. Fábrica owns reactivity/templates. `fabrica-elements` owns element/component factories. Cipó consumes that bridge for `cipo.div.css``...`` ` and `cipo(Component).css``...`` `.
+
+## Install / import
 
 ```ts
-configure({ prefix: 'rod' })
-theme({ colors: { brand: '#f97316' } })
-const card = css`color:red;`
-html`<div class="${card}">Hello</div>`
-injectGlobal`body{margin:0;}`
-getCssText()
-reset()
-cipo.div.css`px:4;`
-cipo(MyComponent).css`color:red;`
-window.Cipo
-window.RodK
+import {
+  assertAtomicCssArtifact,
+  cipo,
+  css,
+  explain,
+  inline,
+  injectGlobal,
+  injectStyle,
+  recipe,
+  registerAlias,
+  registerHelper,
+  registerProperty,
+  setup,
+  theme,
+} from './src/cipo'
 ```
 
-## New API direction
+Userscript:
 
-Old compatibility remains:
-
-```ts
-css`
-  @with(bg(red), px(4), rounded(xl));
-`
-```
-
-Promoted API:
-
-```ts
-css`
-  glass;
-  buttonBase;
-
-  px: 4;
-  py: 2;
-  bg: $brand;
-  color: $ink;
-  rounded: $xl;
-  shadow: $panel;
-
-  text(size: lg, weight: 800, lh: 1.1, color: $ink);
-
-  x:hover {
-    bg: alpha($brand / 18%);
-  }
-
-  x:md {
-    px: 6;
-  }
-`
+```js
+// @require https://OWNER.github.io/REPO/cipo.iife.js
+const { css, inline, setup } = window.Cipo
 ```
 
 ## Setup with theme
 
+Input:
+
 ```ts
 setup({
   prefix: 'rod',
-  minify: false,
   layers: true,
+  minify: false,
   rem: { enabled: true, baseFontSize: 16 },
   colorMode: 'oklch',
   jit: { enabled: true, cache: true, maxEntries: 3000 },
@@ -79,12 +58,13 @@ setup({
 })
 ```
 
-Output includes tokens:
+Output token layer shape:
 
 ```css
 @layer cipo.tokens {
   :root {
     --rod-colors-brand: #f97316;
+    --rod-colors-panel: #0f172a;
     --rod-radius-xl: 1.5rem;
   }
 }
@@ -92,26 +72,180 @@ Output includes tokens:
 
 ## Token inference
 
-Cipó resolves tokens without `$theme`:
+Input:
 
 ```css
-bg: $brand;
-color: $ink;
-rounded: $xl;
-shadow: $panel;
+bg: $panel
+color: $ink
+rounded: $xl
+shadow: $panel
 ```
 
-Explicit namespaces also work:
+Output shape:
 
 ```css
-bg: $colors.brand;
-rounded: $radius.xl;
+background: var(--rod-colors-panel);
+color: var(--rod-colors-ink);
+border-radius: var(--rod-radius-xl);
+box-shadow: var(--rod-shadow-panel);
 ```
 
-Legacy works too:
+Explicit namespaces are also supported:
 
 ```css
-bg: $theme.colors.brand;
+bg: $colors.panel
+rounded: $radius.xl
+```
+
+Legacy `$theme.colors.panel` remains supported for compatibility.
+
+## Atomic/component mode
+
+Declaration-first CSS returns a class artifact.
+
+Input:
+
+```ts
+const card = css`
+  glass
+  px: 4
+  py: 3
+  bg: $panel
+  color: $ink
+  rounded: $xl
+
+  x:hover {
+    bg: alpha($brand / 18%)
+  }
+
+  x:md {
+    px: 6
+  }
+`
+```
+
+Output API:
+
+```ts
+String(card)
+// 'rod-s-... rod-a-... rod-a-...'
+
+card.kind
+// 'cipo.css'
+```
+
+Output CSS shape:
+
+```css
+@layer cipo.atomic {
+  .rod-a-... {
+    padding-inline: calc(var(--rod-spacing, 0.25rem) * 4);
+  }
+
+  .rod-a-...:hover {
+    background: color-mix(in oklch, var(--rod-colors-brand) 18%, transparent);
+  }
+
+  @media (min-width: 768px) {
+    .rod-a-... {
+      padding-inline: calc(var(--rod-spacing, 0.25rem) * 6);
+    }
+  }
+}
+```
+
+## Full stylesheet mode
+
+A top-level selector returns stylesheet text instead of a class list.
+
+Input:
+
+```ts
+const sheet = css`
+  .card {
+    px: 4
+    bg: $panel
+
+    &:hover {
+      bg: alpha($brand / 18%)
+    }
+  }
+`
+```
+
+Output:
+
+```ts
+String(sheet)
+// '.card { padding-inline: ...; background: ... } .card:hover { ... }'
+
+sheet.kind
+// 'cipo.stylesheet'
+```
+
+Use it with:
+
+```ts
+injectGlobal(sheet)
+injectStyle(shadowRoot, sheet)
+```
+
+## Inline style mode
+
+Input:
+
+```ts
+const style = inline.css`
+  px: 2
+  py: 1
+  color: saturate($brand, 20%)
+  bg: alpha($brand / 14%)
+`
+```
+
+Output:
+
+```ts
+String(style)
+// 'padding-inline: ...; padding-block: ...; color: ...; background: ...;'
+```
+
+## Aliases
+
+Built-in aliases:
+
+```css
+hidden
+flex
+grid
+center
+glass
+buttonBase
+focusRing
+interactive
+cardSurface
+truncate
+balance
+pretty
+gpu
+absolute-fill
+screen-safe
+sr-only
+```
+
+Custom alias:
+
+```ts
+registerAlias('elevatedPanel', `
+  glass
+  rounded: $xl
+  shadow: $panel
+`)
+
+const panel = css`
+  elevatedPanel
+  px: 4
+`
 ```
 
 ## Property aliases
@@ -119,11 +253,11 @@ bg: $theme.colors.brand;
 Input:
 
 ```css
-px: 4;
-py: 2;
-gap: 3;
-bg: $brand;
-rounded: $xl;
+px: 4
+py: 2
+gap: 3
+bg: $brand
+rounded: $xl
 ```
 
 Output:
@@ -136,160 +270,54 @@ background: var(--rod-colors-brand);
 border-radius: var(--rod-radius-xl);
 ```
 
-## Standalone aliases
-
-Built-ins include:
-
-```css
-hidden;
-flex;
-grid;
-center;
-glass;
-buttonBase;
-focusRing;
-interactive;
-cardSurface;
-truncate;
-balance;
-pretty;
-gpu;
-absolute-fill;
-screen-safe;
-sr-only;
-```
-
-Custom alias:
+Custom property alias:
 
 ```ts
-registerAlias('elevatedPanel', `
-  glass;
-  rounded: $xl;
-  shadow: $panel;
-`)
-```
+registerProperty('bleed', { property: 'margin-inline', scale: 'spacing' })
 
-Usage:
-
-```ts
 css`
-  elevatedPanel;
-  px: 4;
+  bleed: -4
 `
 ```
 
 ## Helpers
 
-Built-ins:
+Built-ins include:
 
 ```css
-alpha($brand / 20%)
+alpha($brand / 18%)
+gradient(linear, to right, $brand, $danger)
+fluid(1rem, 2rem, 4vw)
+spacing(4)
 lighten($brand, 10%)
 darken($brand, 10%)
 saturate($brand, 20%)
-desaturate($brand, 20%)
-mix($brand, $panel, 50%)
-gradient(linear, to right, $brand, $panel)
-fluid(1rem, 3rem, 4vw)
-spacing(4)
-rem(16px)
-outlineGlow($brand)
-softBorder(alpha($ink / 12%))
 ```
 
 Custom helper:
 
 ```ts
-registerHelper('ring', (args, ctx) => {
-  return `0 0 0 3px ${ctx.resolveValue(`alpha(${args || '$brand'} / 25%)`)}`
+registerHelper('outlineGlow', (args, context) => {
+  return `0 0 0 3px ${context.resolveValue(`alpha(${args || '$brand'} / 25%)`)}`
 })
-```
 
-Usage:
-
-```css
-box-shadow: ring($brand);
-```
-
-## Responsive and variants
-
-```css
-x:md {
-  px: 6;
-}
-
-x:not(md) {
-  display: none;
-}
-
-x:dark {
-  bg: $panel;
-}
-
-x:hover {
-  bg: alpha($brand / 18%);
-}
-
-x:motion-safe {
-  transition: transform 160ms ease;
-}
-```
-
-Custom variants:
-
-```ts
-registerVariant('hocus', ['&:hover', '&:focus-visible'])
-```
-
-```css
-hocus {
-  bg: $brand;
-}
-```
-
-## Text helper
-
-Input:
-
-```css
-text(size: lg, weight: 800, lh: 1.1, color: $ink, decoration: underline, shadow: $panel, wrap: balance);
-```
-
-Output:
-
-```css
-font-size: var(--rod-text-lg);
-font-weight: 800;
-line-height: 1.1;
-color: var(--rod-colors-ink);
-text-decoration-line: underline;
-text-shadow: var(--rod-shadow-panel);
-text-wrap: balance;
-```
-
-## inline.css
-
-```ts
-const style = inline.css`
-  px: 2;
-  py: 1;
-  bg: alpha($brand / 16%);
-  color: saturate($brand, 20%);
+css`
+  x:focus-visible {
+    box-shadow: outlineGlow($brand)
+  }
 `
-
-String(style)
 ```
 
-Output:
+## x variants
+
+`x:` is reserved for runtime contexts:
 
 ```css
-padding-inline: calc(var(--rod-spacing, 0.25rem) * 2); padding-block: calc(var(--rod-spacing, 0.25rem) * 1); background: color-mix(in oklch, var(--rod-colors-brand) 16%, transparent); color: oklch(from var(--rod-colors-brand) l calc(c + 20%) h);
-```
-
-Object input:
-
-```ts
-inline.css({ px: 2, bg: '$brand' })
+x:hover { bg: alpha($brand / 18%) }
+x:focus-visible { outline: 2px solid $brand }
+x:md { px: 6 }
+x:not(md) { width: 100% }
+x:dark { bg: $panel }
 ```
 
 ## Recipes
@@ -302,68 +330,46 @@ const button = recipe({
       primary: 'bg:$brand;color:$ink;',
       danger: 'bg:$danger;color:white;',
     },
-    size: {
-      sm: 'px:2;py:1;',
-      lg: 'px:5;py:3;',
-    },
   },
-  defaults: { tone: 'primary', size: 'sm' },
+  defaults: { tone: 'primary' },
 })
 
-button({ tone: 'danger', size: 'lg' })
+button({ tone: 'danger' }).className
 ```
 
-## DOM and component APIs
+## DOM factories via Fabrica Elements
 
 ```ts
-const el = document.createElement('div')
-const styled = cipo(el).css`px:4;bg:$brand;`
+const Button = cipo.button.css`
+  buttonBase
+  bg: $brand
+  color: $ink
+`
 
-const Card = cipo.div.css`glass;px:4;`
-const node = Card({ class: 'extra', children: 'Hello' })
-
-const StyledComponent = cipo(MyComponent).css`color:red;`
-```
-
-## Shadow/local injection
-
-```ts
-const shadow = host.attachShadow({ mode: 'open' })
-const styles = css`glass;px:4;`
-injectStyle(shadow, styles)
+const node = Button({ children: 'Save' })
 ```
 
 ## Debug
 
 ```ts
-const firstClass = String(card).split(' ')[0]
+const card = css`color: $brand`
+assertAtomicCssArtifact(card)
+const firstClass = card.className.split(' ')[0] ?? ''
+
 explain(firstClass)
-inspect(document.querySelector('.card')!)
 getCssText()
 ```
 
 ## Limitations
 
-- The parser is still a small scanner, not a full CSS parser.
-- Complex nested `@media`, `@supports`, `@keyframes` are not fully modeled yet.
-- Color helpers use modern CSS color functions and need modern browsers.
-- Build-time extraction is not implemented yet. Current JIT is runtime-only.
-- Hot class merging and DOM usage pruning are future work.
+- Fábrica owns real HTML rendering. Cipó's `html``...`` helper is compatibility-only.
+- Full stylesheet mode is selector-first. Declaration-first input stays atomic/component mode.
+- Helpers should be value-level functions. Use aliases for declaration-level macros.
+- JIT cache is runtime-only; build-time extraction is a future step.
 
 ## Next steps
 
-1. Add a real tokenizer with source positions.
-2. Add build-time extractor CLI.
-3. Add `@container` and named container contexts.
-4. Add keyframes/animation registry.
-5. Add CSS variable binding helpers for mouse/scroll state.
-6. Add source map metadata for generated rules.
-7. Add optional static analysis for unused aliases/helpers.
-
-## Commands
-
-```bash
-npm run typecheck
-npm run build
-npm run test
-```
+- Generate API reference pages from TSDoc comments.
+- Add perf benchmark fixtures for parser/JIT hot paths.
+- Add optional static extraction for production builds.
+- Add more recipe examples and visual kitchen-sink pages.
