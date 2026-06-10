@@ -4,6 +4,7 @@ import { css } from "./css";
 import { debug, setDebug } from "./debug";
 import { classMap, ref, repeat, styleMap, virtualRepeat, when } from "./directives";
 import { html, mount, render } from "./dom";
+import { defineElement, elements } from "./elements";
 import { install as installGlobal, noConflict as restoreGlobals } from "./install";
 import { config } from "./install-state";
 import { rawHtml, sanitizedHtml, trustedHtml, unsafeHtml } from "./raw";
@@ -31,6 +32,8 @@ export type FabricaApi = {
   classMap: typeof classMap;
   styleMap: typeof styleMap;
   css: typeof css;
+  elements: typeof elements;
+  defineElement: typeof defineElement;
   $: typeof $;
   config: typeof config;
   install(options?: InstallOptions): FabricaApi;
@@ -94,6 +97,8 @@ export function createFabricaApi(): FabricaApi {
     classMap,
     styleMap,
     css,
+    elements,
+    defineElement,
     $,
     config,
     install(options?: InstallOptions): FabricaApi {
