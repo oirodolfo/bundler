@@ -1,5 +1,7 @@
 import { $, createDomBag } from "./bag";
 import { component } from "./component";
+import { boundary } from "./boundary";
+import { createFabricaContext, provide, useContext } from "./context";
 import { css } from "./css";
 import { debug, setDebug } from "./debug";
 import { classMap, ref, repeat, styleMap, virtualRepeat, when } from "./directives";
@@ -16,6 +18,10 @@ export type FabricaApi = {
   render: typeof render;
   mount: typeof mount;
   component: typeof component;
+  boundary: typeof boundary;
+  createContext: typeof createFabricaContext;
+  provide: typeof provide;
+  useContext: typeof useContext;
   when: typeof when;
   repeat: typeof repeat;
   virtualRepeat: typeof virtualRepeat;
@@ -53,6 +59,10 @@ export function createFabricaApi(): FabricaApi {
     trustedHtml,
     unsafeHtml,
     component,
+    boundary,
+    createContext: createFabricaContext,
+    provide,
+    useContext,
     when,
     repeat,
     virtualRepeat,
@@ -67,6 +77,10 @@ export function createFabricaApi(): FabricaApi {
     render,
     mount,
     component,
+    boundary,
+    createContext: createFabricaContext,
+    provide,
+    useContext,
     when,
     repeat,
     virtualRepeat,

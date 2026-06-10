@@ -3,6 +3,7 @@ export type { FabricaApi } from "./public-api";
 export type {
   Cleanup,
   Component,
+  BoundaryOptions,
   ComponentContext,
   DebugSnapshot,
   Directive,
@@ -17,6 +18,8 @@ export type {
 export { $ } from "./bag";
 export { css } from "./css";
 export { component } from "./component";
+export { boundary } from "./boundary";
+export { createFabricaContext, provide, useContext } from "./context";
 export { debug, setDebug } from "./debug";
 export { classMap, ref, repeat, styleMap, virtualRepeat, when } from "./directives";
 export { html, mount, render } from "./dom";

@@ -87,3 +87,80 @@ const Counter = component((_props, ctx) => {
 ```
 
 This is pass-through from Broto, not Fábrica-owned state.
+
+## Ownership components
+
+Fabrica components are ownership boundaries, not virtual-DOM rerender containers.
+Each component creates a Broto owner. Local effects, resources, refs and lifecycle
+callbacks are disposed when the component DOM range is removed.
+
+```ts
+const Counter = component(function Counter() {
+  const count = signal(0)
+
+  return html`
+    <button @click=${() => count.update((value) => value + 1)}>
+      ${count}
+    </button>
+  `
+})
+```
+
+## Lifecycle
+
+```ts
+const Clock = component(function Clock(_props, ctx) {
+  const now = ctx.signal(Date.now())
+
+  ctx.onMount(() => {
+    const id = setInterval(() => now.set(Date.now()), 1000)
+    return () => clearInterval(id)
+  })
+
+  ctx.onUnmount(() => console.log('clock removed'))
+
+  return html`<time>${now}</time>`
+})
+```
+
+## Owned resources
+
+```ts
+const Profile = component(function Profile(_props, ctx) {
+  const profile = ctx.resource((signal) => {
+    return fetch('/me', { signal }).then((response) => response.json())
+  })
+
+  return html`${() => profile().loading ? 'Loading' : profile().value?.name}`
+})
+```
+
+## Context
+
+```ts
+const Theme = createContext('dark', 'Theme')
+
+const Provider = component(function Provider(props, ctx) {
+  ctx.provide(Theme, 'forest')
+  return html`${props.children}`
+})
+
+const Consumer = component(function Consumer(_props, ctx) {
+  const theme = ctx.useContext(Theme)
+  return html`<p>${theme}</p>`
+})
+```
+
+## Boundary
+
+```ts
+html`${boundary({
+  children: () => html`<risky-view></risky-view>`,
+  fallback: (error, retry) => html`<button @click=${retry}>Retry</button>`,
+})}`
+```
+
+## Why components instead of direct DOM?
+
+Use direct DOM for static one-off nodes. Use components when you need composition,
+cleanup ownership, async cancellation, context, lifecycle, refs or fine-grained bindings.

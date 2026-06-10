@@ -1,5 +1,5 @@
-import type { Cleanup, CleanupRegistrar, ReactiveExpression, Signal } from "../broto/types";
-export type { Cleanup, CleanupRegistrar, ReactiveExpression, Signal } from "../broto/types";
+import type { Cleanup, CleanupRegistrar, ContextToken, Owner, ReactiveExpression, Signal } from "../broto/types";
+export type { Cleanup, CleanupRegistrar, ContextToken, Owner, ReactiveExpression, Signal } from "../broto/types";
 
 /**
  * Shared public and internal types used by FabricaDOM.
@@ -126,23 +126,32 @@ export type MapDirective = ClassMapDirective | StyleMapDirective;
 
 /** Component context. */
 export type ComponentContext = {
-  /**
-   * Creates local reactive state for components.
-   *
-   * @remarks
-   * This is provided by Broto, not by Fábrica itself. Fábrica only passes it
-   * through the component context for UI ergonomics.
-   */
+  /** Component owner created by Broto. */
+  owner: Owner;
+  /** Stable component id useful for labels, aria and debug output. */
+  id: string;
+  /** Creates local reactive state for components. */
   signal: typeof import("../broto/reactivity").signal;
+  /** Creates an effect owned by this component boundary. */
   effect: typeof import("../broto/reactivity").effect;
   computed: typeof import("../broto/reactivity").computed;
   memo: typeof import("../broto/reactivity").memo;
   batch: typeof import("../broto/reactivity").batch;
   untrack: typeof import("../broto/reactivity").untrack;
+  resource: typeof import("../broto/resources").resource;
   onMount(callback: () => void | Cleanup): void;
+  onUnmount(callback: Cleanup): void;
   onDispose(callback: Cleanup): void;
+  provide<Value>(context: ContextToken<Value>, value: Value): Value;
+  useContext<Value>(context: ContextToken<Value>): Value;
   ref(callback: (node: Element) => void | Cleanup): RefDirective;
-  id: string;
+};
+
+/** Error boundary options. */
+export type BoundaryOptions = {
+  children: () => RenderValue;
+  fallback: (error: unknown, retry: () => void) => RenderValue;
+  onError?: (error: unknown) => void;
 };
 
 /** Reusable component function. */
