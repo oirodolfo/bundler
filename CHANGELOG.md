@@ -44,3 +44,28 @@
 - Refactored Cipó's styled-component-compatible API to delegate DOM/component creation to `fabrica-elements`.
 - Added Fábrica `elements` and `defineElement()` exports backed by `fabrica-elements`.
 - Preserved existing public APIs: `cipo.div.css`, `cipo(Component).css`, `cipo(element).css`, `Fabrica.html`, `Fabrica.component`, and all current build entrypoints.
+
+## 1.1.0 - Ownership runtime, component boundaries and composition
+
+### Added
+
+- Added Broto owner graph primitives: `createRoot`, `createOwner`, `disposeOwner`, `cleanupOwner`, `getOwner`, `runWithOwner`, `onOwnerCleanup`, and `inspectOwnerGraph`.
+- Added Broto context primitives: `createContext`, `provide`, and `useContext`.
+- Added scheduler utilities: `scheduleTask()` and `flushSync()`.
+- Upgraded `resource()` with AbortController ownership, stale state, `.abort()` and automatic disposal when the current owner is disposed.
+- Upgraded Fabrica `component()` so every component creates a Broto ownership boundary.
+- Added component-owned lifecycle APIs: `onMount`, `onUnmount`, `onDispose`, owned `resource`, owned `effect`, context `provide/useContext`, and ref cleanup.
+- Added Fabrica `boundary()` for synchronous render error recovery.
+- Added Fabrica public context helpers: `createContext`, `provide`, `useContext`.
+- Added Fabrica Elements composition helpers: `cx`, `createRef`, `composeRefs`, and `childrenToArray`.
+
+### Changed
+
+- Effects are now attached to the current Broto owner and dispose nested effects/resources created during previous runs.
+- Components now dispose local effects, resources, refs, lifecycle callbacks and async work when their DOM boundary is removed.
+- Fabrica remains focused on HTML/UI while Broto owns reactive lifecycle and scheduling.
+
+### Compatibility
+
+- Existing APIs remain available: `signal`, `effect`, `computed`, `resource`, `component`, `html`, `render`, `mount`, `ref`, `repeat`, `virtualRepeat`, `cipo`, and `css`.
+- Existing component factories still work. The new context/lifecycle fields are additive.
