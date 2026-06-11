@@ -27,7 +27,9 @@ export type RenderValue =
   | ReactiveExpression<unknown>
   | Directive
   | RawHtml
-  | DomBag;
+  | DomBag
+  | Component
+  | ComponentRenderRequest;
 
 /** Runtime debug counters. */
 export type DebugSnapshot = {
@@ -155,8 +157,20 @@ export type BoundaryOptions = {
 };
 
 /** Reusable component function. */
-export type Component<Props extends object = Record<string, never>> = ((props?: Props) => RenderValue) & {
+export type ComponentChildren = RenderValue | readonly RenderValue[];
+
+/** A deferred component invocation used by component tags and direct composition. */
+export type ComponentRenderRequest<Props extends object = Record<string, never>> = {
+  readonly __kind: "componentRender";
+  readonly component: Component<Props>;
+  readonly props: Props & { children?: ComponentChildren };
+};
+
+/** Reusable component function. */
+export type Component<Props extends object = Record<string, never>> = ((props?: Props & { children?: ComponentChildren }) => ComponentRenderRequest<Props>) & {
   readonly __kind: "component";
+  readonly displayName?: string;
+  readonly factory?: (props: Props & { children?: ComponentChildren }, context: ComponentContext) => RenderValue;
 };
 
 /** Template part compiled from an HTML template. */
@@ -171,6 +185,11 @@ export type TemplatePart =
       index: number;
       path: number[];
       name: string;
+    }
+  | {
+      type: "component";
+      index: number;
+      path: number[];
     };
 
 /** Cached compiled template. */

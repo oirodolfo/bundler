@@ -1,6 +1,7 @@
 import type {
   ClassMapDirective,
   Component,
+  ComponentRenderRequest,
   Directive,
   DomBag,
   RawHtml,
@@ -55,6 +56,17 @@ export function isComponent(value: unknown): value is Component {
  * @param value - Unknown value.
  * @returns Whether the value is a directive.
  */
+
+/**
+ * Checks whether a value is a deferred component render request.
+ *
+ * @param value - Unknown value.
+ * @returns Whether the value is a component render request.
+ */
+export function isComponentRenderRequest(value: unknown): value is ComponentRenderRequest {
+  return Boolean(value && typeof value === "object" && (value as ComponentRenderRequest).__kind === "componentRender");
+}
+
 export function isDirective(value: unknown): value is Directive {
   return Boolean(value && typeof value === "object" && (value as Directive).__kind === "directive");
 }

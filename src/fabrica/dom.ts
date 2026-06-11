@@ -2,12 +2,14 @@ import { PART_END, PART_START } from "./constants";
 import { debugState } from "./debug";
 import { clearRange, disposeRange, disposeTree, moveRangeBefore, registerCleanup, removeRange } from "./dom-cleanup";
 import { bindEvent } from "./events";
-import { isClassMapDirective, isDirective, isDomBag, isDomElement, isDomNode, isRawHtml, isRefDirective, isSignal, isStyleMapDirective } from "./guards";
+import { isClassMapDirective, isComponentRenderRequest, isDirective, isDomBag, isDomElement, isDomNode, isRawHtml, isRefDirective, isSignal, isStyleMapDirective } from "./guards";
 import { applyClassMap, applyStyleMap } from "./maps";
 import { batch, effect, signal } from "../broto/reactivity";
-import { comparePathsReverse, getCompiledTemplate, resolvePath } from "./template";
+import { createOwner, disposeOwner, getOwner, runWithOwner } from "../broto/owner";
+import { comparePathsReverse, compileParts, getCompiledTemplate, resolvePath } from "./template";
 import { hasReactiveValue, readValue } from "./value";
-import type { Directive, DirectiveController, RenderValue, RepeatDirective, RepeatRecord, TemplatePart, VirtualRepeatDirective, WhenDirective } from "./types";
+import { materializeComponent } from "./component";
+import type { ComponentRenderRequest, Directive, DirectiveController, RenderValue, RepeatDirective, RepeatRecord, TemplatePart, VirtualRepeatDirective, WhenDirective } from "./types";
 
 /** Persistent root render parts keyed by container. */
 const renderStates = new WeakMap<Node, { part: ReturnType<typeof createChildPart>; dispose: () => void }>();
@@ -25,7 +27,7 @@ const renderStates = new WeakMap<Node, { part: ReturnType<typeof createChildPart
  * ```
  */
 export function html(strings: TemplateStringsArray, ...values: RenderValue[]): DocumentFragment {
-  const compiled = getCompiledTemplate(strings);
+  const compiled = getCompiledTemplate(strings, values);
   const fragment = compiled.template.content.cloneNode(true) as DocumentFragment;
 
   applyParts(fragment, compiled.parts, values);
@@ -112,6 +114,11 @@ export function appendValue(parentNode: Node | null, value: RenderValue, beforeN
     return;
   }
 
+  if (isComponentRenderRequest(resolvedValue)) {
+    parentNode.insertBefore(materializeComponent(resolvedValue as ComponentRenderRequest), beforeNode);
+    return;
+  }
+
   if (isDomBag(resolvedValue)) {
     const elements = resolvedValue.elements;
 
@@ -180,8 +187,10 @@ function applyParts(fragment: DocumentFragment, parts: readonly TemplatePart[], 
 
     if (resolved.part.type === "child") {
       bindChildPart(resolved.node, values[resolved.part.index]);
-    } else {
+    } else if (resolved.part.type === "attribute") {
       bindAttributePart(resolved.node, resolved.part.name, values[resolved.part.index]);
+    } else {
+      bindComponentPart(resolved.node, values[resolved.part.index], values);
     }
   }
 }
@@ -194,17 +203,74 @@ function applyParts(fragment: DocumentFragment, parts: readonly TemplatePart[], 
  */
 function bindChildPart(marker: Node, value: RenderValue | undefined): void {
   const part = createChildPart(marker);
+  const owner = createOwner({ parent: getOwner(), name: "fabrica.childPart" });
+
+  registerCleanup(part.start, () => disposeOwner(owner));
 
   if (hasReactiveValue(value)) {
-    const dispose = effect(() => {
+    const dispose = runWithOwner(owner, () => effect(() => {
       part.set(readValue(value) as RenderValue);
-    });
+    }, { name: "fabrica.childBinding" }));
 
     registerCleanup(part.start, dispose);
     return;
   }
 
-  part.set(value);
+  runWithOwner(owner, () => part.set(value));
+}
+
+
+/**
+ * Binds a component placeholder created by `<${Component}>...</${Component}>`.
+ *
+ * @param node - Template placeholder node.
+ * @param value - Component function from the opening interpolation.
+ * @param values - All template values for dynamic children inside the component body.
+ */
+function bindComponentPart(node: Node, value: RenderValue | undefined, values: readonly RenderValue[]): void {
+  if (!(node instanceof HTMLTemplateElement) || typeof value !== "function") {
+    return;
+  }
+
+  const props = readStaticComponentProps(node);
+  const children = node.content.cloneNode(true) as DocumentFragment;
+  const childParts = compileParts(children);
+
+  applyParts(children, childParts, values);
+
+  const request = (value as unknown as (props: Record<string, unknown>) => ComponentRenderRequest)({
+    ...props,
+    children,
+  });
+
+  const marker = document.createComment("fabrica:component-tag");
+  node.parentNode?.insertBefore(marker, node);
+  node.remove();
+
+  const part = createChildPart(marker);
+  part.set(request as RenderValue);
+}
+
+/**
+ * Reads static attributes from a component placeholder.
+ *
+ * @param template - Component placeholder template.
+ * @returns Props object.
+ */
+function readStaticComponentProps(template: HTMLTemplateElement): Record<string, unknown> {
+  const props: Record<string, unknown> = {};
+
+  for (let index = 0; index < template.attributes.length; index += 1) {
+    const attribute = template.attributes[index];
+
+    if (!attribute || attribute.name === "data-fabrica-component") {
+      continue;
+    }
+
+    props[attribute.name] = attribute.value;
+  }
+
+  return props;
 }
 
 /**

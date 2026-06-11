@@ -1,6 +1,7 @@
 import { ATTR_MARKER_PREFIX, ATTR_MARKER_SUFFIX, TEXT_MARKER_PREFIX } from "./constants";
 import { debugState } from "./debug";
-import type { CompiledTemplate, TemplatePart } from "./types";
+import { isComponent } from "./guards";
+import type { CompiledTemplate, RenderValue, TemplatePart } from "./types";
 
 /** Template compilation cache keyed by the browser-owned TemplateStringsArray. */
 const templateCache = new WeakMap<TemplateStringsArray, CompiledTemplate>();
@@ -8,15 +9,38 @@ const templateCache = new WeakMap<TemplateStringsArray, CompiledTemplate>();
 /**
  * Gets a compiled template from cache or compiles a new one.
  *
+ * @remarks
+ * The compiler understands normal child/attribute markers and Fabrica component
+ * tags. Component tags are authored as real template syntax:
+ *
+ * ```ts
+ * html`
+ *   <${Button} tone="primary">
+ *     Save
+ *   </${Button}>
+ * `
+ * ```
+ *
+ * Internally, the opening component interpolation becomes a hidden
+ * `<template data-fabrica-component="...">` node. At runtime that node is
+ * replaced with the component output and its children are passed as
+ * `props.children`.
+ *
  * @param strings - Template strings.
+ * @param values - Runtime values. Only used to detect component tag positions.
  * @returns Compiled template and static part metadata.
  *
- * @example
+ * @example Input
  * ```ts
- * const compiled = getCompiledTemplate(strings);
+ * html`<${Button} tone="primary">Save</${Button}>`
+ * ```
+ *
+ * @example Generated shape
+ * ```html
+ * <template data-fabrica-component="0" tone="primary">Save</template>
  * ```
  */
-export function getCompiledTemplate(strings: TemplateStringsArray): CompiledTemplate {
+export function getCompiledTemplate(strings: TemplateStringsArray, values: readonly RenderValue[] = []): CompiledTemplate {
   const cached = templateCache.get(strings);
 
   if (cached) {
@@ -24,7 +48,7 @@ export function getCompiledTemplate(strings: TemplateStringsArray): CompiledTemp
   }
 
   const template = document.createElement("template");
-  template.innerHTML = buildTemplateSource(strings);
+  template.innerHTML = buildTemplateSource(strings, values);
 
   const parts = compileParts(template.content);
   const compiled: CompiledTemplate = { template, parts };
@@ -37,12 +61,13 @@ export function getCompiledTemplate(strings: TemplateStringsArray): CompiledTemp
 }
 
 /**
- * Builds template HTML with text and attribute markers.
+ * Builds template HTML with text, attribute and component markers.
  *
  * @param strings - Static template chunks.
+ * @param values - Runtime values.
  * @returns HTML source with markers.
  */
-export function buildTemplateSource(strings: TemplateStringsArray): string {
+export function buildTemplateSource(strings: TemplateStringsArray, values: readonly RenderValue[] = []): string {
   let source = "";
 
   for (let index = 0; index < strings.length; index += 1) {
@@ -50,6 +75,18 @@ export function buildTemplateSource(strings: TemplateStringsArray): string {
     source += chunk;
 
     if (index >= strings.length - 1) {
+      continue;
+    }
+
+    const value = values[index];
+
+    if (isComponent(value) && chunk.endsWith("<")) {
+      source += `template data-fabrica-component="${index}"`;
+      continue;
+    }
+
+    if (isComponent(value) && chunk.endsWith("</")) {
+      source += "template";
       continue;
     }
 
@@ -72,16 +109,17 @@ export function isAttributePosition(chunk: string): boolean {
 }
 
 /**
- * Compiles child and attribute parts from a template root.
+ * Compiles child, attribute and component parts from a template root.
  *
  * @param root - Template content root.
  * @returns Template parts.
  */
-function compileParts(root: DocumentFragment): TemplatePart[] {
+export function compileParts(root: DocumentFragment): TemplatePart[] {
   const parts: TemplatePart[] = [];
 
   compileChildParts(root, parts);
   compileAttributeParts(root, parts);
+  compileComponentParts(root, parts);
 
   return parts;
 }
@@ -136,6 +174,28 @@ function compileAttributeParts(root: DocumentFragment, parts: TemplatePart[]): v
       parts.push({ type: "attribute", index: markerIndex, path: getNodePath(root, element), name: attribute.name });
       element.removeAttribute(attribute.name);
     }
+  }
+}
+
+/**
+ * Compiles component placeholders created by component-tag syntax.
+ *
+ * @param root - Template root.
+ * @param parts - Parts accumulator.
+ */
+function compileComponentParts(root: DocumentFragment, parts: TemplatePart[]): void {
+  const templates = Array.from(root.querySelectorAll("template[data-fabrica-component]"));
+
+  for (let index = 0; index < templates.length; index += 1) {
+    const element = templates[index];
+    const rawIndex = element.getAttribute("data-fabrica-component");
+    const componentIndex = Number(rawIndex);
+
+    if (!Number.isFinite(componentIndex)) {
+      continue;
+    }
+
+    parts.push({ type: "component", index: componentIndex, path: getNodePath(root, element) });
   }
 }
 

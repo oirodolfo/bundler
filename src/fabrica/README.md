@@ -1,8 +1,8 @@
 # Fábrica
 
-Fábrica is the HTML/UI runtime of the Rod browser ecosystem. It owns template parsing, DOM parts, rendering, directives, components, lifecycle hooks and hydration-oriented UI work.
+Fábrica is the HTML/UI runtime of the Rod browser ecosystem. It owns template parsing, DOM parts, rendering, directives, components, lifecycle hooks, composition and hydration-oriented UI work.
 
-Reactivity now lives in **Broto**. Fábrica consumes Broto internally and accepts Broto signals in render values, but it no longer owns or exports the reactive primitives from its public API.
+Reactivity lives in **Broto**. Fábrica consumes Broto internally and accepts Broto signals in render values, but state primitives are not owned by Fábrica.
 
 ## Package boundaries
 
@@ -25,10 +25,16 @@ Fabrica
  ├── directives
  ├── DOM parts
  ├── components
+ ├── component tags
+ ├── context
+ ├── lifecycle
+ ├── error boundaries
  └── hydration
 ```
 
-## Basic usage
+## Basic fine-grained rendering
+
+Input:
 
 ```ts
 import { signal } from "../broto";
@@ -46,6 +52,276 @@ render(
 );
 ```
 
+Output:
+
+```html
+<button>Count: 0</button>
+```
+
+When `count.set(1)` runs, only the text node is updated.
+
+## Component direct composition
+
+Input:
+
+```ts
+const Button = component(function Button(props) {
+  return html`
+    <button type=${props.type ?? "button"} class=${props.class}>
+      ${props.children}
+    </button>
+  `;
+});
+
+render(
+  document.body,
+  html`${Button({ class: "primary", children: "Save" })}`,
+);
+```
+
+Output:
+
+```html
+<button type="button" class="primary">Save</button>
+```
+
+## Component tag composition
+
+Component tags are now enabled. The template compiler turns component tags into hidden template placeholders and passes their content as `props.children`.
+
+Input:
+
+```ts
+render(
+  document.body,
+  html`
+    <${Button} class="primary" type="submit">
+      Save
+    </${Button}>
+  `,
+);
+```
+
+Output:
+
+```html
+<button type="submit" class="primary">Save</button>
+```
+
+## Dynamic children inside component tags
+
+Input:
+
+```ts
+const label = signal("Save");
+
+render(
+  document.body,
+  html`
+    <${Button} class="primary">
+      ${label}
+    </${Button}>
+  `,
+);
+
+label.set("Saved");
+```
+
+Output before update:
+
+```html
+<button class="primary">Save</button>
+```
+
+Output after update:
+
+```html
+<button class="primary">Saved</button>
+```
+
+## Component lifecycle
+
+Input:
+
+```ts
+const Clock = component(function Clock(_props, ctx) {
+  const now = ctx.signal(Date.now());
+
+  ctx.onMount(() => {
+    const id = setInterval(() => now.set(Date.now()), 1000);
+    return () => clearInterval(id);
+  });
+
+  ctx.onUnmount(() => console.log("clock removed"));
+
+  return html`<time>${now}</time>`;
+});
+```
+
+Output:
+
+```html
+<time>1710000000000</time>
+```
+
+When the component range is removed, interval cleanup and unmount cleanup run.
+
+## Owned resources
+
+Input:
+
+```ts
+const Profile = component(function Profile(props, ctx) {
+  const profile = ctx.resource(
+    (abort, id) => fetch(`/users/${id}`, { signal: abort }).then((response) => response.json()),
+    { source: () => props.id, cacheKey: (id) => `user:${id}`, retries: 1 },
+  );
+
+  return html`${() => {
+    const state = profile();
+    if (state.loading) return "Loading";
+    if (state.error) return "Failed";
+    return state.value?.name;
+  }}`;
+});
+```
+
+Output while loading:
+
+```html
+Loading
+```
+
+Output after success:
+
+```html
+Rod
+```
+
+When the component unmounts, the request is aborted.
+
+## Context
+
+Input:
+
+```ts
+const Theme = createContext("dark", "Theme");
+
+const Provider = component(function Provider(props, ctx) {
+  ctx.provide(Theme, "forest");
+  return html`${props.children}`;
+});
+
+const Consumer = component(function Consumer(_props, ctx) {
+  const theme = ctx.useContext(Theme);
+  return html`<p>${theme}</p>`;
+});
+
+render(document.body, html`
+  <${Provider}>
+    <${Consumer}></${Consumer}>
+  </${Provider}>
+`);
+```
+
+Output:
+
+```html
+<p>forest</p>
+```
+
+## Error boundary
+
+Input:
+
+```ts
+const Risky = component(function Risky() {
+  throw new Error("boom");
+});
+
+render(document.body, html`${boundary({
+  children: () => html`<${Risky}></${Risky}>`,
+  fallback: (error, retry) => html`<button @click=${retry}>Retry</button>`,
+})}`);
+```
+
+Output:
+
+```html
+<button>Retry</button>
+```
+
+Boundaries catch synchronous render errors plus Broto owner errors from effects, lifecycle callbacks and resources.
+
+## Refs
+
+Input:
+
+```ts
+const FocusInput = component(function FocusInput(_props, ctx) {
+  return html`<input ${ctx.ref((node) => (node as HTMLInputElement).focus())}>`;
+});
+```
+
+Output:
+
+```html
+<input>
+```
+
+The input receives focus on mount.
+
+## Directives
+
+### `when`
+
+Input:
+
+```ts
+html`${when(isOpen, () => html`<p>Open</p>`, () => html`<p>Closed</p>`)}`
+```
+
+Output:
+
+```html
+<p>Open</p>
+```
+
+### `repeat`
+
+Input:
+
+```ts
+html`${repeat(items, (item) => item.id, ({ item }) => html`<li>${() => item().label}</li>`)}`
+```
+
+Output:
+
+```html
+<li>First</li>
+<li>Second</li>
+```
+
+### `virtualRepeat`
+
+Input:
+
+```ts
+html`${virtualRepeat(bigList, (item) => item.id, ({ item }) => html`<div>${() => item().name}</div>`, {
+  height: 360,
+  itemHeight: 32,
+  overscan: 8,
+})}`
+```
+
+Output shape:
+
+```html
+<div style="overflow: auto; max-height: 360px; contain: content;">
+  <!-- visible window only -->
+</div>
+```
+
 ## Public API
 
 ```ts
@@ -53,6 +329,10 @@ html`...`
 render(target, value)
 mount(target, value)
 component(factory)
+boundary(options)
+createContext(defaultValue, description?)
+provide(context, value)
+useContext(context)
 when(condition, truthy, falsy?)
 repeat(items, key, render)
 virtualRepeat(items, key, render, options)
@@ -65,102 +345,16 @@ defineElement(...)
 $ bag API
 ```
 
-## Why signals moved out
-
-Keeping Broto separate makes both packages smaller and clearer:
-
-- Broto can run in DOM-free environments.
-- Fábrica can focus on rendering and UI.
-- Tests for reactivity no longer need DOM concerns.
-- Future renderers can consume the same reactive runtime.
-
-## Compatibility note
-
-Component context still exposes Broto helpers for ergonomics:
-
-```ts
-const Counter = component((_props, ctx) => {
-  const count = ctx.signal(0);
-
-  return html`${count}`;
-});
-```
-
-This is pass-through from Broto, not Fábrica-owned state.
-
-## Ownership components
-
-Fabrica components are ownership boundaries, not virtual-DOM rerender containers.
-Each component creates a Broto owner. Local effects, resources, refs and lifecycle
-callbacks are disposed when the component DOM range is removed.
-
-```ts
-const Counter = component(function Counter() {
-  const count = signal(0)
-
-  return html`
-    <button @click=${() => count.update((value) => value + 1)}>
-      ${count}
-    </button>
-  `
-})
-```
-
-## Lifecycle
-
-```ts
-const Clock = component(function Clock(_props, ctx) {
-  const now = ctx.signal(Date.now())
-
-  ctx.onMount(() => {
-    const id = setInterval(() => now.set(Date.now()), 1000)
-    return () => clearInterval(id)
-  })
-
-  ctx.onUnmount(() => console.log('clock removed'))
-
-  return html`<time>${now}</time>`
-})
-```
-
-## Owned resources
-
-```ts
-const Profile = component(function Profile(_props, ctx) {
-  const profile = ctx.resource((signal) => {
-    return fetch('/me', { signal }).then((response) => response.json())
-  })
-
-  return html`${() => profile().loading ? 'Loading' : profile().value?.name}`
-})
-```
-
-## Context
-
-```ts
-const Theme = createContext('dark', 'Theme')
-
-const Provider = component(function Provider(props, ctx) {
-  ctx.provide(Theme, 'forest')
-  return html`${props.children}`
-})
-
-const Consumer = component(function Consumer(_props, ctx) {
-  const theme = ctx.useContext(Theme)
-  return html`<p>${theme}</p>`
-})
-```
-
-## Boundary
-
-```ts
-html`${boundary({
-  children: () => html`<risky-view></risky-view>`,
-  fallback: (error, retry) => html`<button @click=${retry}>Retry</button>`,
-})}`
-```
-
 ## Why components instead of direct DOM?
 
-Use direct DOM for static one-off nodes. Use components when you need composition,
-cleanup ownership, async cancellation, context, lifecycle, refs or fine-grained bindings.
+Use direct DOM for static one-off nodes. Use components when you need:
+
+- composition
+- cleanup ownership
+- async cancellation
+- error boundaries
+- context propagation
+- lifecycle hooks
+- refs
+- fine-grained bindings
+- reusable UI contracts
