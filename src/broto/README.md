@@ -100,3 +100,47 @@ flushSync()
 ```ts
 console.log(inspectOwnerGraph())
 ```
+
+## Owner error propagation
+
+Input:
+
+```ts
+const [_, dispose] = createRoot(() => {
+  onOwnerError((error) => {
+    console.error(error);
+    return true;
+  });
+
+  effect(() => {
+    throw new Error("boom");
+  });
+});
+
+dispose();
+```
+
+Output:
+
+```txt
+Error: boom
+```
+
+## Resource source/cache/retry
+
+Input:
+
+```ts
+const id = signal("rod");
+const profile = resource(
+  (abort, userId) => fetch(`/users/${userId}`, { signal: abort }).then((r) => r.json()),
+  { source: id, cacheKey: (userId) => `user:${userId}`, retries: 1, timeoutMs: 5000 },
+);
+```
+
+Output state:
+
+```ts
+profile();
+// { loading: false, value: { name: "Rod" }, error: undefined, stale: false }
+```

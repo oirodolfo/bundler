@@ -16,6 +16,7 @@ export type OwnerOptions = {
   id?: string;
   name?: string;
   parent?: Owner | null;
+  onError?: OwnerErrorHandler;
 };
 
 /** Context token used by Broto owner trees. */
@@ -26,6 +27,8 @@ export type ContextToken<Value> = {
 };
 
 /** Lifecycle owner used for effects, resources and UI component boundaries. */
+export type OwnerErrorHandler = (error: unknown, owner: Owner) => void | boolean;
+
 export type Owner = {
   id: string;
   name?: string;
@@ -33,6 +36,7 @@ export type Owner = {
   children: Set<Owner>;
   cleanups: Cleanup[];
   context: Map<ContextToken<unknown>, unknown>;
+  errorHandlers: OwnerErrorHandler[];
   disposed: boolean;
 };
 
@@ -102,7 +106,15 @@ export type ResourceState<Value, ErrorValue = unknown> = {
 };
 
 /** Async resource controls. */
-export type ResourceLoader<Value> = (signal: AbortSignal) => Promise<Value>;
+export type ResourceLoader<Value, Source = void> = (signal: AbortSignal, source: Source) => Promise<Value>;
+
+export type ResourceOptions<Source = void> = {
+  source?: Source | Signal<Source> | (() => Source);
+  immediate?: boolean;
+  cacheKey?: string | ((source: Source) => string);
+  timeoutMs?: number;
+  retries?: number;
+};
 
 /** Async resource controls. */
 export type Resource<Value, ErrorValue = unknown> = Signal<ResourceState<Value, ErrorValue>> & {

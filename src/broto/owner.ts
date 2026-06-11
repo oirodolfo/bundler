@@ -1,4 +1,4 @@
-import type { Cleanup, ContextToken, Owner, OwnerOptions } from "./types";
+import type { Cleanup, ContextToken, Owner, OwnerErrorHandler, OwnerOptions } from "./types";
 
 let ownerId = 0;
 let activeOwner: Owner | null = null;
@@ -7,11 +7,11 @@ let activeOwner: Owner | null = null;
  * Gets the currently active owner.
  *
  * @remarks
- * Owners are Broto's lifecycle boundaries. Effects, resources and components can
- * register cleanup work against the active owner so disposal is deterministic
- * instead of relying on GC or ad-hoc arrays.
+ * Owners are Broto's lifecycle boundaries. Effects, resources and Fabrica
+ * components register cleanup, context and error handlers against the active
+ * owner, so disposal follows a deterministic tree instead of ad-hoc arrays.
  *
- * @returns The active owner, or null when code is running outside a root.
+ * @returns The active owner, or null when no owner is running.
  *
  * @example
  * ```ts
@@ -70,6 +70,7 @@ export function createOwner(options: OwnerOptions = {}): Owner {
     children: new Set<Owner>(),
     cleanups: [],
     context: new Map<ContextToken<unknown>, unknown>(),
+    errorHandlers: options.onError ? [options.onError] : [],
     disposed: false,
   };
 
@@ -124,11 +125,76 @@ export function onOwnerCleanup(cleanup: Cleanup): Cleanup {
 }
 
 /**
- * Runs and clears an owner's child graph and cleanup stack without marking it disposed.
+ * Registers an error handler on the active owner.
  *
  * @remarks
- * Effects use this during re-runs: nested effects/resources created during the
- * previous run must be disposed, but the effect's owner remains reusable.
+ * Error handlers are walked from the throwing owner up to the root. Returning
+ * `true` marks the error as handled. This powers Fabrica error boundaries and
+ * keeps async resources/events/effects from becoming orphaned browser errors.
+ *
+ * @param handler - Error handler.
+ * @returns Cleanup that removes the handler.
+ *
+ * @example
+ * ```ts
+ * const stop = onOwnerError((error) => {
+ *   console.error(error);
+ *   return true;
+ * });
+ * stop();
+ * ```
+ */
+export function onOwnerError(handler: OwnerErrorHandler): Cleanup {
+  if (!activeOwner || activeOwner.disposed) {
+    return () => {};
+  }
+
+  const owner = activeOwner;
+  owner.errorHandlers.push(handler);
+
+  return () => {
+    const index = owner.errorHandlers.indexOf(handler);
+    if (index >= 0) {
+      owner.errorHandlers.splice(index, 1);
+    }
+  };
+}
+
+/**
+ * Propagates an error through the owner tree.
+ *
+ * @param error - Error value.
+ * @param origin - Owner where the error happened. Defaults to active owner.
+ * @returns Whether an owner handled the error.
+ *
+ * @example
+ * ```ts
+ * if (!handleOwnerError(error)) throw error;
+ * ```
+ */
+export function handleOwnerError(error: unknown, origin: Owner | null = activeOwner): boolean {
+  let owner = origin;
+
+  while (owner) {
+    for (let index = owner.errorHandlers.length - 1; index >= 0; index -= 1) {
+      try {
+        const handled = owner.errorHandlers[index]?.(error, owner);
+        if (handled === true) {
+          return true;
+        }
+      } catch (handlerError) {
+        error = handlerError;
+      }
+    }
+
+    owner = owner.parent;
+  }
+
+  return false;
+}
+
+/**
+ * Runs and clears an owner's child graph and cleanup stack without marking it disposed.
  *
  * @param owner - Owner to clean.
  * @returns void.
@@ -142,7 +208,7 @@ export function cleanupOwner(owner: Owner): void {
 
   const cleanups = owner.cleanups.splice(0);
   for (let index = cleanups.length - 1; index >= 0; index -= 1) {
-    runCleanup(cleanups[index]);
+    runCleanup(cleanups[index], owner);
   }
 }
 
@@ -151,11 +217,6 @@ export function cleanupOwner(owner: Owner): void {
  *
  * @param owner - Owner to dispose.
  * @returns void.
- *
- * @example
- * ```ts
- * disposeOwner(owner);
- * ```
  */
 export function disposeOwner(owner: Owner): void {
   if (owner.disposed) {
@@ -193,11 +254,6 @@ export function createContext<Value>(defaultValue?: Value, description = "BrotoC
  * @param context - Context token.
  * @param value - Value to provide.
  * @returns Provided value.
- *
- * @example
- * ```ts
- * provide(ThemeContext, "forest");
- * ```
  */
 export function provide<Value>(context: ContextToken<Value>, value: Value): Value {
   if (!activeOwner) {
@@ -213,11 +269,6 @@ export function provide<Value>(context: ContextToken<Value>, value: Value): Valu
  *
  * @param context - Context token.
  * @returns Nearest provided value or token default.
- *
- * @example
- * ```ts
- * const theme = useContext(ThemeContext);
- * ```
  */
 export function useContext<Value>(context: ContextToken<Value>): Value {
   let owner = activeOwner;
@@ -238,11 +289,6 @@ export function useContext<Value>(context: ContextToken<Value>): Value {
  *
  * @param root - Root owner. Defaults to active owner.
  * @returns Owner graph object.
- *
- * @example
- * ```ts
- * console.log(inspectOwnerGraph());
- * ```
  */
 export function inspectOwnerGraph(root: Owner | null = activeOwner): unknown {
   if (!root) {
@@ -255,11 +301,12 @@ export function inspectOwnerGraph(root: Owner | null = activeOwner): unknown {
     disposed: root.disposed,
     cleanups: root.cleanups.length,
     context: root.context.size,
+    errorHandlers: root.errorHandlers.length,
     children: Array.from(root.children, (child) => inspectOwnerGraph(child)),
   };
 }
 
-function runCleanup(cleanup: Cleanup | undefined): void {
+function runCleanup(cleanup: Cleanup | undefined, owner: Owner): void {
   if (!cleanup) {
     return;
   }
@@ -267,8 +314,10 @@ function runCleanup(cleanup: Cleanup | undefined): void {
   try {
     cleanup();
   } catch (error) {
-    queueMicrotask(() => {
-      throw error;
-    });
+    if (!handleOwnerError(error, owner)) {
+      queueMicrotask(() => {
+        throw error;
+      });
+    }
   }
 }

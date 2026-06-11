@@ -1,5 +1,5 @@
 import { brotoDebugState } from "./debug";
-import { cleanupOwner, createOwner, getOwner, onOwnerCleanup, runWithOwner } from "./owner";
+import { cleanupOwner, createOwner, getOwner, handleOwnerError, onOwnerCleanup, runWithOwner } from "./owner";
 import type { Cleanup, CleanupRegistrar, EffectOptions, EffectRunner, SchedulerPriority, Signal, SignalOptions, SchedulerMode } from "./types";
 
 /** Queued async effects waiting for the next scheduler flush. */
@@ -187,6 +187,10 @@ export function effect(callback: (cleanup: CleanupRegistrar) => void, options: E
 
     try {
       runWithOwner(owner, () => callback(onCleanup));
+    } catch (error) {
+      if (!handleOwnerError(error, owner)) {
+        throw error;
+      }
     } finally {
       activeEffect = previousEffect;
     }
@@ -468,7 +472,14 @@ function flushEffects(): void {
     effectQueue.clear();
 
     for (let index = 0; index < queued.length; index += 1) {
-      queued[index]?.();
+      try {
+        queued[index]?.();
+      } catch (error) {
+        const owner = queued[index]?.owner ?? null;
+        if (!handleOwnerError(error, owner)) {
+          throw error;
+        }
+      }
     }
 
     if (batchDepth > 0) {
@@ -517,7 +528,13 @@ function flushTasks(): void {
     queue.clear();
 
     for (let taskIndex = 0; taskIndex < tasks.length; taskIndex += 1) {
-      tasks[taskIndex]?.();
+      try {
+        tasks[taskIndex]?.();
+      } catch (error) {
+        if (!handleOwnerError(error)) {
+          throw error;
+        }
+      }
     }
   }
 
