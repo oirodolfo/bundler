@@ -109,6 +109,38 @@ Output:
 
 The runtime now links DOM ranges to Broto owners, so effects, resources, context, refs, event listeners and lifecycle cleanup are disposed together.
 
+## Fábrica micro-JSX
+
+Fábrica now has a tiny JSX-like syntax inside template strings. It is still browser-native: no Babel, no AST transform, no virtual DOM.
+
+Input:
+
+```ts
+const Dock = Fabrica.component(function Dock() {
+  return Fabrica.html`<button>Open</button>`;
+});
+
+Fabrica.render(document.body, Fabrica.html.jsx`
+  <Dock />
+`);
+```
+
+Output:
+
+```html
+<button>Open</button>
+```
+
+For explicit parser-safe composition:
+
+```ts
+Fabrica.render(document.body, Fabrica.html.jsx`
+  <f-component name="Dock" />
+`);
+```
+
+Unregistered components render a visible `<fabrica-component-error>` fallback, which makes broken names obvious during userscript debugging.
+
 ## Error boundaries and owned async resources
 
 Input:
