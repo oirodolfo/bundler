@@ -43,7 +43,7 @@ env:
 
 jobs:
   guard:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       should_run: ${{ steps.guard.outputs.should_run }}
       reason: ${{ steps.guard.outputs.reason }}
@@ -117,10 +117,32 @@ jobs:
           echo "should_run=${{ steps.guard.outputs.should_run }}"
           echo "reason=${{ steps.guard.outputs.reason }}"
 
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout private source
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile=false
+
+      - name: Test it all!
+        run: pnpm test
+
+      
   build:
     needs: guard
     if: ${{ github.event_name == 'workflow_dispatch' || needs.guard.outputs.should_run == 'true' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout private source
