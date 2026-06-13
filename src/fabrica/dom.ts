@@ -57,6 +57,23 @@ const renderStates = new WeakMap<
   { part: ReturnType<typeof createChildPart>; dispose: () => void }
 >();
 
+type ExternalRenderable = {
+  node?: unknown;
+  el?: unknown;
+  element?: unknown;
+  tag?: unknown;
+  props?: Record<string, unknown>;
+  children?: unknown;
+  className?: unknown;
+  selector?: unknown;
+  name?: unknown;
+  cssText?: unknown;
+  compiledCss?: unknown;
+  toNode?: () => unknown;
+  render?: () => unknown;
+  toString?: () => string;
+};
+
 /**
  * Creates DOM from a tagged template.
  *
@@ -266,6 +283,10 @@ export function appendValue(
 
   if (isDomNode(resolvedValue)) {
     parentNode.insertBefore(resolvedValue, beforeNode);
+    return;
+  }
+
+  if (appendExternalRenderableValue(parentNode, resolvedValue, beforeNode)) {
     return;
   }
 
@@ -620,6 +641,26 @@ function createChildPart(marker: Node): {
         return;
       }
 
+      if (isComponentRenderRequest(resolvedValue)) {
+        clearRange(start, end);
+        appendValue(end.parentNode, resolvedValue, end);
+        currentType = "component";
+        currentText = "";
+        textNode = null;
+        currentNode = null;
+        return;
+      }
+
+      if (isDomBag(resolvedValue)) {
+        clearRange(start, end);
+        appendValue(end.parentNode, resolvedValue, end);
+        currentType = "bag";
+        currentText = "";
+        textNode = null;
+        currentNode = null;
+        return;
+      }
+
       if (Array.isArray(resolvedValue)) {
         clearRange(start, end);
 
@@ -661,6 +702,16 @@ function createChildPart(marker: Node): {
         currentText = "";
         textNode = null;
         currentNode = resolvedValue;
+        return;
+      }
+
+      if (isExternalRenderable(resolvedValue)) {
+        clearRange(start, end);
+        appendExternalRenderableValue(end.parentNode, resolvedValue, end);
+        currentType = "external";
+        currentText = "";
+        textNode = null;
+        currentNode = null;
         return;
       }
 
@@ -758,18 +809,20 @@ function bindPlainAttributePart(
       return;
     }
 
-    if (Object.is(previous, next)) {
+    const normalized = normalizeAttributeValue(name, next);
+
+    if (Object.is(previous, normalized)) {
       return;
     }
 
-    previous = next;
+    previous = normalized;
 
-    if (next == null || next === false) {
+    if (normalized == null || normalized === false) {
       element.removeAttribute(name);
       return;
     }
 
-    element.setAttribute(name, String(next));
+    element.setAttribute(name, String(normalized));
   };
 
   const dispose = hasReactiveValue(value) ? effect(update) : (update(), null);
@@ -1234,4 +1287,245 @@ function createRepeatRecord(
   fragment.append(end);
 
   return { ...context, start, end, fragment };
+}
+
+function isExternalRenderable(value: unknown): value is ExternalRenderable {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as ExternalRenderable;
+
+  return Boolean(
+    candidate.node instanceof Node ||
+      candidate.el instanceof Node ||
+      candidate.element instanceof Node ||
+      typeof candidate.toNode === "function" ||
+      typeof candidate.render === "function" ||
+      (typeof candidate.tag === "string" && candidate.props),
+  );
+}
+
+function appendExternalRenderableValue(
+  parentNode: Node | null,
+  value: unknown,
+  beforeNode: Node | null,
+): boolean {
+  if (!parentNode || !value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as ExternalRenderable;
+
+  if (candidate.node instanceof Node) {
+    parentNode.insertBefore(candidate.node, beforeNode);
+    return true;
+  }
+
+  if (candidate.el instanceof Node) {
+    parentNode.insertBefore(candidate.el, beforeNode);
+    return true;
+  }
+
+  if (candidate.element instanceof Node) {
+    parentNode.insertBefore(candidate.element, beforeNode);
+    return true;
+  }
+
+  if (typeof candidate.toNode === "function") {
+    appendValue(parentNode, candidate.toNode() as RenderValue, beforeNode);
+    return true;
+  }
+
+  if (typeof candidate.render === "function") {
+    appendValue(parentNode, candidate.render() as RenderValue, beforeNode);
+    return true;
+  }
+
+  if (typeof candidate.tag === "string" && candidate.props) {
+    const element = document.createElement(candidate.tag);
+    applyExternalProps(element, candidate.props);
+
+    if (candidate.children !== undefined) {
+      appendValue(element, candidate.children as RenderValue);
+    }
+
+    parentNode.insertBefore(element, beforeNode);
+    return true;
+  }
+
+  return false;
+}
+
+function applyExternalProps(
+  element: Element,
+  props: Record<string, unknown>,
+): void {
+  for (const key in props) {
+    const value = props[key];
+
+    if (value == null || value === false) {
+      continue;
+    }
+
+    if (key === "children") {
+      appendValue(element, value as RenderValue);
+      continue;
+    }
+
+    if (key === "class" || key === "className") {
+      const className = normalizeAttributeValue("class", value);
+
+      if (className != null && className !== false) {
+        element.setAttribute("class", String(className));
+      }
+
+      continue;
+    }
+
+    if (key === "style") {
+      const styleText = normalizeAttributeValue("style", value);
+
+      if (styleText != null && styleText !== false) {
+        element.setAttribute("style", String(styleText));
+      }
+
+      continue;
+    }
+
+    if (key === "ref") {
+      if (typeof value === "function") {
+        const cleanup = value(element);
+
+        if (typeof cleanup === "function") {
+          registerCleanup(element, cleanup);
+        }
+      }
+
+      continue;
+    }
+
+    if (key === "on" && value && typeof value === "object") {
+      const events = value as Record<string, unknown>;
+
+      for (const eventName in events) {
+        const listener = events[eventName];
+
+        if (typeof listener === "function") {
+          element.addEventListener(eventName, listener as EventListener);
+        }
+      }
+
+      continue;
+    }
+
+    if (key.startsWith("on") && typeof value === "function") {
+      element.addEventListener(key.slice(2).toLowerCase(), value as EventListener);
+      continue;
+    }
+
+    if (key in element) {
+      try {
+        (element as unknown as Record<string, unknown>)[key] = value;
+        continue;
+      } catch {
+        element.setAttribute(key, String(value));
+        continue;
+      }
+    }
+
+    element.setAttribute(key, String(value));
+  }
+}
+
+function normalizeAttributeValue(name: string, value: unknown): unknown {
+  if (value == null || value === false) {
+    return null;
+  }
+
+  if (name === "class" || name === "className") {
+    return normalizeClassLikeValue(value);
+  }
+
+  if (name === "style") {
+    return normalizeStyleLikeValue(value);
+  }
+
+  return value;
+}
+
+function normalizeClassLikeValue(value: unknown): unknown {
+  if (value == null || value === false) {
+    return null;
+  }
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(normalizeClassLikeValue).filter(Boolean).join(" ");
+  }
+
+  if (typeof value === "object") {
+    const candidate = value as ExternalRenderable;
+
+    if (typeof candidate.className === "string") {
+      return candidate.className;
+    }
+
+    if (typeof candidate.selector === "string") {
+      return candidate.selector.replace(/^\./, "");
+    }
+
+    if (typeof candidate.name === "string") {
+      return candidate.name;
+    }
+
+    if (typeof candidate.toString === "function") {
+      const text = candidate.toString();
+
+      if (text && text !== "[object Object]") {
+        return text.replace(/^\./, "");
+      }
+    }
+
+    return null;
+  }
+
+  return value;
+}
+
+function normalizeStyleLikeValue(value: unknown): unknown {
+  if (value == null || value === false) {
+    return null;
+  }
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (typeof value === "object") {
+    const candidate = value as ExternalRenderable;
+
+    if (typeof candidate.cssText === "string") {
+      return candidate.cssText;
+    }
+
+    if (typeof candidate.compiledCss === "string") {
+      return candidate.compiledCss;
+    }
+
+    if (typeof candidate.toString === "function") {
+      const text = candidate.toString();
+
+      if (text && text !== "[object Object]") {
+        return text;
+      }
+    }
+
+    return null;
+  }
+
+  return value;
 }
