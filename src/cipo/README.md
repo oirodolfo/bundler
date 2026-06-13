@@ -373,3 +373,104 @@ getCssText()
 - Add perf benchmark fixtures for parser/JIT hot paths.
 - Add optional static extraction for production builds.
 - Add more recipe examples and visual kitchen-sink pages.
+
+## Performance and helper safety notes
+
+Cipó 1.1.1 changes the helper resolver from recursive expansion to a bounded iterative scanner. This matters for helpers that expand into other helpers.
+
+Input:
+
+```ts
+const button = css`
+  px: 4
+  py: 2
+  bg: $brand
+  color: saturate($brand, 20%)
+  /* bg: alpha($brand / 14%) */
+  #box-shadow: outlineGlow($brand)
+  $glassCard
+  bleed: -4
+
+  x:focus-visible {
+    box-shadow: outlineGlow($brand)
+  }
+
+  x:hover {
+    bg: alpha($brand / 72%)
+  }
+
+  x:md {
+    px: 6
+  }
+
+  x:not(md) {
+    width: 100%
+  }
+`
+```
+
+Output shape:
+
+```css
+.cipo-a-... {
+  padding-inline: calc(var(--cipo-spacing, 0.25rem) * 4);
+}
+
+.cipo-a-... {
+  padding-block: calc(var(--cipo-spacing, 0.25rem) * 2);
+}
+
+.cipo-a-... {
+  background: var(--cipo-colors-brand);
+}
+
+.cipo-a-... {
+  color: oklch(from var(--cipo-colors-brand) l calc(c + 20%) h);
+}
+
+.cipo-a-... {
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--cipo-colors-brand) 28%, transparent);
+}
+
+.cipo-a-... {
+  margin: calc(var(--cipo-spacing, 0.25rem) * -4);
+}
+
+.cipo-a-...:focus-visible {
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--cipo-colors-brand) 28%, transparent);
+}
+
+.cipo-a-...:hover {
+  background: color-mix(in oklch, var(--cipo-colors-brand) 72%, transparent);
+}
+
+@media (min-width: 768px) {
+  .cipo-a-... {
+    padding-inline: calc(var(--cipo-spacing, 0.25rem) * 6);
+  }
+}
+
+@media not all and (min-width: 768px) {
+  .cipo-a-... {
+    width: 100%;
+  }
+}
+```
+
+### New syntax supported in this patch
+
+`$glassCard` as a standalone line expands the registered `glassCard` alias. Inside values, `$brand` still resolves to a theme token.
+
+`#box-shadow: ...` strips the `#` and writes the raw CSS property. This is useful when you want the exact property, not a future alias or plugin override.
+
+`bleed: -4` maps to `margin` with the spacing scale, so it becomes a negative spacing calculation.
+
+Block comments can hide whole Cipó blocks safely:
+
+```css
+/*
+x:hover {
+  bg: alpha($brand / 72%)
+}
+*/
+```
