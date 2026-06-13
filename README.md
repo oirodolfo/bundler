@@ -1,4 +1,4 @@
-# Rod Browser Toolbox
+# [Rod Browser Toolbox](https://rodkisten.github.io/bundler)
 
 Browser-first build system for the Rod ecosystem. The project emits one browser global per root entrypoint, plus ESM/IIFE builds, extracted examples, and a generated landing page.
 
