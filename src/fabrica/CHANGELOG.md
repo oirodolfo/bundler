@@ -30,3 +30,16 @@
 - Added owned effects, resources, cleanup stack, mount/unmount lifecycle, context and refs.
 - Added `boundary()` for render error recovery.
 - Added public context helpers: `createContext`, `provide`, `useContext`.
+
+## Unreleased
+
+### Added
+
+- Added the preferred `jsx.html` micro-JSX namespace for syntax highlighting friendly component templates while preserving `html.jsx` as a compatibility alias.
+- Added `component(name, factory)` as a minifier-safe component definition form. The existing `component(factory)` API is unchanged.
+
+### Fixed
+
+- Fixed micro-JSX closing/self-closing component tag regex escaping so compiled bundles keep `\s` matching instead of degrading to literal `s`.
+- Fixed dynamic component props in micro-JSX/component placeholders so values like `<TabButton plugin=${item} />` reach the component as the original runtime value instead of stringifying to `[object Object]`.
+- Fixed a duplicated local declaration in property binding.

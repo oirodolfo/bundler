@@ -185,7 +185,7 @@ export function transformMicroJsxChunk(chunk: string): string {
   let output = rewriteExplicitComponentTags(chunk);
 
   output = output.replace(
-    new RegExp(`<(${JSX_COMPONENT_NAME})([^<>]*?)\/\s*>`, "g"),
+    new RegExp(`<(${JSX_COMPONENT_NAME})([^<>]*?)\\/\\s*>`, "g"),
     (_match, name: string, attrs: string) => `<template data-fabrica-component-name="${escapeComponentName(name)}"${attrs || ""}></template>`,
   );
 
@@ -194,7 +194,7 @@ export function transformMicroJsxChunk(chunk: string): string {
     (_match, name: string, attrs: string) => `<template data-fabrica-component-name="${escapeComponentName(name)}"${attrs || ""}>`,
   );
 
-  output = output.replace(new RegExp(`</(${JSX_COMPONENT_NAME})\s*>`, "g"), "</template>");
+  output = output.replace(new RegExp(`</(${JSX_COMPONENT_NAME})\\s*>`, "g"), "</template>");
 
   return output;
 }

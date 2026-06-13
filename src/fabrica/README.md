@@ -419,3 +419,30 @@ Use direct DOM for static one-off nodes. Use components when you need:
 - refs
 - fine-grained bindings
 - reusable UI contracts
+
+## Preferred micro-JSX entrypoint
+
+`jsx.html` is now the recommended component-template syntax because editors tend to highlight it better than `html.jsx`. The old API stays available.
+
+```ts
+const Button = component("Button", function Button(props) {
+  return html`<button class=${props.tone}>${props.children}</button>`;
+});
+
+render(root, jsx.html`
+  <Button tone="primary">Save</Button>
+`);
+```
+
+Dynamic component props preserve their original runtime value:
+
+```ts
+const TabButton = component("TabButton", function TabButton(props) {
+  const plugin = props.plugin;
+  return html`<button>${() => plugin().title}</button>`;
+});
+
+jsx.html`<TabButton plugin=${item} />`;
+```
+
+`html.jsx` remains an alias for existing code.

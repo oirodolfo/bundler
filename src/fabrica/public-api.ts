@@ -1,29 +1,66 @@
-import { batch, computed, effect, memo, signal, untrack, configureScheduler, flushSync, scheduleTask } from "../broto/reactivity";
+import {
+  batch,
+  computed,
+  effect,
+  memo,
+  signal,
+  untrack,
+  configureScheduler,
+  flushSync,
+  scheduleTask,
+} from "../broto/reactivity";
 import { resource } from "../broto/resources";
 import { $, createDomBag } from "./bag";
 import { component } from "./component";
-import { clearComponents, listComponents, registerComponent, resolveComponent, unregisterComponent } from "./component-registry";
+import {
+  clearComponents,
+  listComponents,
+  registerComponent,
+  resolveComponent,
+  unregisterComponent,
+} from "./component-registry";
 import { boundary } from "./boundary";
 import { createFabricaContext, provide, useContext } from "./context";
 import { css } from "./css";
 import { debug, setDebug } from "./debug";
-import { classMap, ref, repeat, styleMap, virtualRepeat, when } from "./directives";
-import { html, mount, render } from "./dom";
+import {
+  classMap,
+  ref,
+  repeat,
+  styleMap,
+  virtualRepeat,
+  when,
+} from "./directives";
+import { html, jsx, mount, render } from "./dom";
 import { defineElement, elements } from "./elements";
-import { install as installGlobal, noConflict as restoreGlobals } from "./install";
+import {
+  install as installGlobal,
+  noConflict as restoreGlobals,
+} from "./install";
 import { config } from "./install-state";
 import { rawHtml, sanitizedHtml, trustedHtml, unsafeHtml } from "./raw";
-import type { Component, DebugSnapshot, DomBag, InstallOptions, RawHtml, RenderValue } from "./types";
+import type {
+  Component,
+  DebugSnapshot,
+  DomBag,
+  InstallOptions,
+  RawHtml,
+  RenderValue,
+} from "./types";
 
 /** Public FabricaDOM API shape. */
 export type FabricaApi = {
   html: typeof html & {
-    jsx(strings: TemplateStringsArray, ...values: RenderValue[]): DocumentFragment;
+    jsx(
+      strings: TemplateStringsArray,
+      ...values: RenderValue[]
+    ): DocumentFragment;
     raw(value: string): RawHtml;
     sanitized(value: string): RawHtml;
     trusted(value: string): RawHtml;
     unsafe(value: string): RawHtml;
   };
+  jsx: typeof jsx;
   render: typeof render;
   mount: typeof mount;
   signal: typeof signal;
@@ -74,7 +111,7 @@ export type FabricaApi = {
  *   return html`<button>Open</button>`;
  * });
  *
- * render(document.body, html.jsx`<Dock />`);
+ * render(document.body, jsx.html`<Dock />`);
  * ```
  */
 export function createFabricaApi(): FabricaApi {
@@ -119,6 +156,7 @@ export function createFabricaApi(): FabricaApi {
 
   const api = {
     html: htmlWithRaw,
+    jsx,
     render,
     mount,
     signal,
