@@ -18,11 +18,14 @@ export type {
 export { $ } from "./bag";
 export { css } from "./css";
 export { component } from "./component";
+export { clearComponents, isRegisteredComponentName, listComponents, registerComponent, resolveComponent, unregisterComponent } from "./component-registry";
 export { boundary } from "./boundary";
 export { createFabricaContext, provide, useContext } from "./context";
 export { debug, setDebug } from "./debug";
 export { classMap, ref, repeat, styleMap, virtualRepeat, when } from "./directives";
 export { html, mount, render } from "./dom";
+export { batch, computed, configureScheduler, effect, flushSync, memo, scheduleTask, signal, untrack } from "../broto/reactivity";
+export { resource } from "../broto/resources";
 export { defineElement, elements } from "./elements";
 export { rawHtml, sanitizedHtml, trustedHtml, unsafeHtml } from "./raw";
 

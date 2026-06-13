@@ -108,6 +108,67 @@ Output:
 <button type="submit" class="primary">Save</button>
 ```
 
+## Micro-JSX string component tags
+
+`html.jsx` enables uppercase component tags inside template strings without Babel, TSX, or a virtual DOM. Components are resolved from a registry. `component(function Name(){})` registers itself automatically under `Name`; minified or anonymous components can be registered manually.
+
+Input:
+
+```ts
+const Dock = component(function Dock(props) {
+  return html`<button type="button">${props.label}</button>`;
+});
+
+render(
+  document.body,
+  html.jsx`
+    <Dock label="Open" />
+  `,
+);
+```
+
+Output:
+
+```html
+<button type="button">Open</button>
+```
+
+Dynamic props work through normal Fabrica attribute parts:
+
+```ts
+const label = signal("Open");
+
+render(document.body, html.jsx`<Dock label=${label} />`);
+label.set("Close");
+```
+
+For fully parser-safe templates, use the explicit fallback element:
+
+```ts
+render(document.body, html.jsx`
+  <f-component name="Dock" label="Open" />
+`);
+```
+
+If a component cannot be resolved, Fabrica renders a visible error element instead of stringifying the component function:
+
+```html
+<fabrica-component-error data-fabrica-error="missing-component">
+  [Fabrica] Missing component: MissingDock
+</fabrica-component-error>
+```
+
+Manual registry aliases:
+
+```ts
+const TinyDock = component(function Dock() {
+  return html`<button>Dock</button>`;
+});
+
+registerComponent("TinyDock", TinyDock);
+render(document.body, html.jsx`<TinyDock />`);
+```
+
 ## Dynamic children inside component tags
 
 Input:

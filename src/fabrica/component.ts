@@ -2,6 +2,7 @@ import { batch, computed, effect, memo, signal, untrack } from "../broto/reactiv
 import { createRoot, handleOwnerError, provide, runWithOwner, useContext } from "../broto/owner";
 import { resource } from "../broto/resources";
 import { debugState } from "./debug";
+import { registerComponent } from "./component-registry";
 import { registerCleanup } from "./dom-cleanup";
 import { appendValue } from "./dom";
 import { ref } from "./directives";
@@ -81,6 +82,10 @@ export function component<Props extends object = Record<string, never>>(
   Object.defineProperty(renderComponent, "displayName", { value: displayName, enumerable: false });
   Object.defineProperty(renderComponent, "factory", { value: factory, enumerable: false });
   debugState.components += 1;
+
+  if (factory.name) {
+    registerComponent(factory.name, renderComponent);
+  }
 
   return renderComponent;
 }

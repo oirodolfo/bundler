@@ -6,9 +6,10 @@ import { isClassMapDirective, isComponentRenderRequest, isDirective, isDomBag, i
 import { applyClassMap, applyStyleMap } from "./maps";
 import { batch, effect, signal } from "../broto/reactivity";
 import { createOwner, disposeOwner, getOwner, runWithOwner } from "../broto/owner";
-import { comparePathsReverse, compileParts, getCompiledTemplate, resolvePath } from "./template";
+import { comparePathsReverse, compileParts, getCompiledJsxTemplate, getCompiledTemplate, resolvePath } from "./template";
 import { hasReactiveValue, readValue } from "./value";
 import { materializeComponent } from "./component";
+import { resolveComponent } from "./component-registry";
 import type { ComponentRenderRequest, Directive, DirectiveController, RenderValue, RepeatDirective, RepeatRecord, TemplatePart, VirtualRepeatDirective, WhenDirective } from "./types";
 
 /** Persistent root render parts keyed by container. */
@@ -34,6 +35,45 @@ export function html(strings: TemplateStringsArray, ...values: RenderValue[]): D
 
   return fragment;
 }
+
+/**
+ * Creates DOM from Fabrica micro-JSX syntax.
+ *
+ * @remarks
+ * This is a deliberately small JSX-like compiler that runs inside template
+ * strings. It rewrites registered uppercase component tags before the browser
+ * HTML parser runs, so it avoids Babel and avoids the custom-element
+ * self-closing trap.
+ *
+ * Components are resolved from the registry populated by `component(fn)` or
+ * `registerComponent(name, component)`.
+ *
+ * @param strings - Template strings.
+ * @param values - Dynamic values.
+ * @returns Rendered document fragment.
+ *
+ * @example input
+ * ```ts
+ * const Dock = component(function Dock() {
+ *   return html`<button>Open</button>`;
+ * });
+ *
+ * render(app, html.jsx`<Dock />`);
+ * ```
+ *
+ * @example output
+ * ```html
+ * <button>Open</button>
+ * ```
+ */
+(html as typeof html & { jsx: typeof html }).jsx = function jsx(strings: TemplateStringsArray, ...values: RenderValue[]): DocumentFragment {
+  const compiled = getCompiledJsxTemplate(strings, values);
+  const fragment = compiled.template.content.cloneNode(true) as DocumentFragment;
+
+  applyParts(fragment, compiled.parts, values);
+
+  return fragment;
+};
 
 /**
  * Replaces a container content and returns a dispose function.
@@ -190,7 +230,7 @@ function applyParts(fragment: DocumentFragment, parts: readonly TemplatePart[], 
     } else if (resolved.part.type === "attribute") {
       bindAttributePart(resolved.node, resolved.part.name, values[resolved.part.index]);
     } else {
-      bindComponentPart(resolved.node, values[resolved.part.index], values);
+      bindComponentPart(resolved.node, resolved.part.index >= 0 ? values[resolved.part.index] : undefined, values, resolved.part);
     }
   }
 }
@@ -227,8 +267,22 @@ function bindChildPart(marker: Node, value: RenderValue | undefined): void {
  * @param value - Component function from the opening interpolation.
  * @param values - All template values for dynamic children inside the component body.
  */
-function bindComponentPart(node: Node, value: RenderValue | undefined, values: readonly RenderValue[]): void {
-  if (!(node instanceof HTMLTemplateElement) || typeof value !== "function") {
+function bindComponentPart(node: Node, value: RenderValue | undefined, values: readonly RenderValue[], part?: Extract<TemplatePart, { type: "component" }>): void {
+  if (!(node instanceof HTMLTemplateElement)) {
+    return;
+  }
+
+  const componentName = part?.name || readComponentName(node);
+  const componentValue = typeof value === "function" ? value : componentName ? resolveComponent(componentName) : undefined;
+  const marker = document.createComment(componentName ? `fabrica:component-tag:${componentName}` : "fabrica:component-tag");
+
+  node.parentNode?.insertBefore(marker, node);
+  node.remove();
+
+  const childPart = createChildPart(marker);
+
+  if (typeof componentValue !== "function") {
+    childPart.set(createMissingComponentFallback(componentName || "unknown") as RenderValue);
     return;
   }
 
@@ -238,17 +292,35 @@ function bindComponentPart(node: Node, value: RenderValue | undefined, values: r
 
   applyParts(children, childParts, values);
 
-  const request = (value as unknown as (props: Record<string, unknown>) => ComponentRenderRequest)({
+  const request = (componentValue as unknown as (props: Record<string, unknown>) => ComponentRenderRequest)({
     ...props,
     children,
   });
 
-  const marker = document.createComment("fabrica:component-tag");
-  node.parentNode?.insertBefore(marker, node);
-  node.remove();
+  childPart.set(request as RenderValue);
+}
 
-  const part = createChildPart(marker);
-  part.set(request as RenderValue);
+
+function readComponentName(template: HTMLTemplateElement): string {
+  return template.getAttribute("data-fabrica-component-name") || template.getAttribute("name") || "";
+}
+
+function createMissingComponentFallback(name: string): HTMLElement {
+  const element = document.createElement("fabrica-component-error");
+  element.setAttribute("role", "alert");
+  element.setAttribute("data-fabrica-error", "missing-component");
+  element.setAttribute("data-component", name);
+  element.style.cssText = [
+    "display:inline-block",
+    "padding:6px 8px",
+    "border:1px solid #f87171",
+    "border-radius:8px",
+    "background:#450a0a",
+    "color:#fecaca",
+    "font:12px/1.35 ui-monospace,SFMono-Regular,Menlo,monospace",
+  ].join(";");
+  element.textContent = `[Fabrica] Missing component: ${name}`;
+  return element;
 }
 
 /**
@@ -263,7 +335,7 @@ function readStaticComponentProps(template: HTMLTemplateElement): Record<string,
   for (let index = 0; index < template.attributes.length; index += 1) {
     const attribute = template.attributes[index];
 
-    if (!attribute || attribute.name === "data-fabrica-component") {
+    if (!attribute || attribute.name === "data-fabrica-component" || attribute.name === "data-fabrica-component-name" || attribute.name === "data-fabrica-explicit-component" || attribute.name === "name") {
       continue;
     }
 

@@ -190,6 +190,7 @@ export type TemplatePart =
       type: "component";
       index: number;
       path: number[];
+      name?: string;
     };
 
 /** Cached compiled template. */

@@ -6,25 +6,23 @@ import type { CompiledTemplate, RenderValue, TemplatePart } from "./types";
 /** Template compilation cache keyed by the browser-owned TemplateStringsArray. */
 const templateCache = new WeakMap<TemplateStringsArray, CompiledTemplate>();
 
+/** Template compilation cache for micro-JSX templates. */
+const jsxTemplateCache = new WeakMap<TemplateStringsArray, CompiledTemplate>();
+
+/** Uppercase component tag names accepted by the micro-JSX compiler. */
+const JSX_COMPONENT_NAME = "[A-Z][A-Za-z0-9_$.-]*";
+
+/** Reserved component element for explicit, parser-safe composition. */
+const FABRICA_COMPONENT_TAG = "f-component";
+
 /**
  * Gets a compiled template from cache or compiles a new one.
  *
  * @remarks
- * The compiler understands normal child/attribute markers and Fabrica component
- * tags. Component tags are authored as real template syntax:
- *
- * ```ts
- * html`
- *   <${Button} tone="primary">
- *     Save
- *   </${Button}>
- * `
- * ```
- *
- * Internally, the opening component interpolation becomes a hidden
- * `<template data-fabrica-component="...">` node. At runtime that node is
- * replaced with the component output and its children are passed as
- * `props.children`.
+ * Normal `html` supports plain DOM templates and interpolation-based component
+ * tags such as `<${Button}>...</${Button}>`. For string-based component tags,
+ * use `html.jsx`, which rewrites uppercase tags before the browser parser sees
+ * them.
  *
  * @param strings - Template strings.
  * @param values - Runtime values. Only used to detect component tag positions.
@@ -41,19 +39,63 @@ const templateCache = new WeakMap<TemplateStringsArray, CompiledTemplate>();
  * ```
  */
 export function getCompiledTemplate(strings: TemplateStringsArray, values: readonly RenderValue[] = []): CompiledTemplate {
-  const cached = templateCache.get(strings);
+  return getCompiledTemplateWithMode(strings, values, false);
+}
+
+/**
+ * Gets a compiled micro-JSX template from cache or compiles a new one.
+ *
+ * @remarks
+ * Micro-JSX is intentionally tiny and browser-first. It supports registered
+ * uppercase component tags and the explicit `<f-component name="...">` fallback
+ * without Babel, AST tooling or a full JSX parser.
+ *
+ * Supported syntax:
+ *
+ * ```ts
+ * html.jsx`
+ *   <Dock />
+ *   <Panel title="Inspector">
+ *     <Toolbar />
+ *   </Panel>
+ *   <f-component name="Dock" />
+ * `
+ * ```
+ *
+ * @param strings - Template strings.
+ * @param values - Runtime values.
+ * @returns Compiled template and static part metadata.
+ *
+ * @example input
+ * ```ts
+ * html.jsx`<Dock label="Open" />`
+ * ```
+ *
+ * @example output
+ * ```html
+ * <!-- component boundary comments -->
+ * <button>Open</button>
+ * ```
+ */
+export function getCompiledJsxTemplate(strings: TemplateStringsArray, values: readonly RenderValue[] = []): CompiledTemplate {
+  return getCompiledTemplateWithMode(strings, values, true);
+}
+
+function getCompiledTemplateWithMode(strings: TemplateStringsArray, values: readonly RenderValue[], jsx: boolean): CompiledTemplate {
+  const cache = jsx ? jsxTemplateCache : templateCache;
+  const cached = cache.get(strings);
 
   if (cached) {
     return cached;
   }
 
   const template = document.createElement("template");
-  template.innerHTML = buildTemplateSource(strings, values);
+  template.innerHTML = buildTemplateSource(strings, values, { jsx });
 
   const parts = compileParts(template.content);
   const compiled: CompiledTemplate = { template, parts };
 
-  templateCache.set(strings, compiled);
+  cache.set(strings, compiled);
   debugState.templates += 1;
   debugState.parts += parts.length;
 
@@ -65,13 +107,25 @@ export function getCompiledTemplate(strings: TemplateStringsArray, values: reado
  *
  * @param strings - Static template chunks.
  * @param values - Runtime values.
+ * @param options - Compiler options.
  * @returns HTML source with markers.
  */
-export function buildTemplateSource(strings: TemplateStringsArray, values: readonly RenderValue[] = []): string {
+export function buildTemplateSource(
+  strings: TemplateStringsArray,
+  values: readonly RenderValue[] = [],
+  options: { jsx?: boolean } = {},
+): string {
   let source = "";
+  let skipNextPrefix = "";
 
   for (let index = 0; index < strings.length; index += 1) {
-    const chunk = strings[index] ?? "";
+    let chunk = strings[index] ?? "";
+
+    if (skipNextPrefix && chunk.startsWith(skipNextPrefix)) {
+      chunk = chunk.slice(skipNextPrefix.length);
+      skipNextPrefix = "";
+    }
+
     source += chunk;
 
     if (index >= strings.length - 1) {
@@ -81,6 +135,15 @@ export function buildTemplateSource(strings: TemplateStringsArray, values: reado
     const value = values[index];
 
     if (isComponent(value) && chunk.endsWith("<")) {
+      const nextChunk = strings[index + 1] ?? "";
+      const selfClose = nextChunk.match(/^\s*\/\s*>/);
+
+      if (selfClose) {
+        source += `template data-fabrica-component="${index}"></template`;
+        skipNextPrefix = selfClose[0];
+        continue;
+      }
+
       source += `template data-fabrica-component="${index}"`;
       continue;
     }
@@ -95,7 +158,59 @@ export function buildTemplateSource(strings: TemplateStringsArray, values: reado
       : `<!--${TEXT_MARKER_PREFIX}${index}-->`;
   }
 
-  return source;
+  return options.jsx ? transformMicroJsxChunk(source) : source;
+}
+
+/**
+ * Rewrites static micro-JSX component tags into inert template placeholders.
+ *
+ * @param chunk - Static HTML chunk.
+ * @returns Rewritten chunk.
+ *
+ * @example input
+ * ```html
+ * <Dock title="Logs" />
+ * ```
+ *
+ * @example output
+ * ```html
+ * <template data-fabrica-component-name="Dock" title="Logs"></template>
+ * ```
+ */
+export function transformMicroJsxChunk(chunk: string): string {
+  if (!chunk || (chunk.indexOf("<") === -1 && chunk.indexOf("</") === -1)) {
+    return chunk;
+  }
+
+  let output = rewriteExplicitComponentTags(chunk);
+
+  output = output.replace(
+    new RegExp(`<(${JSX_COMPONENT_NAME})([^<>]*?)\/\s*>`, "g"),
+    (_match, name: string, attrs: string) => `<template data-fabrica-component-name="${escapeComponentName(name)}"${attrs || ""}></template>`,
+  );
+
+  output = output.replace(
+    new RegExp(`<(${JSX_COMPONENT_NAME})([^<>]*?)>`, "g"),
+    (_match, name: string, attrs: string) => `<template data-fabrica-component-name="${escapeComponentName(name)}"${attrs || ""}>`,
+  );
+
+  output = output.replace(new RegExp(`</(${JSX_COMPONENT_NAME})\s*>`, "g"), "</template>");
+
+  return output;
+}
+
+function rewriteExplicitComponentTags(chunk: string): string {
+  return chunk.replace(
+    /<f-component\b([^<>]*?)\/\s*>/g,
+    (_match, attrs: string) => `<template data-fabrica-explicit-component="true"${attrs || ""}></template>`,
+  ).replace(
+    /<f-component\b([^<>]*?)>/g,
+    (_match, attrs: string) => `<template data-fabrica-explicit-component="true"${attrs || ""}>`,
+  ).replace(/<\/f-component\s*>/g, "</template>");
+}
+
+function escapeComponentName(name: string): string {
+  return String(name).replace(/&/g, "&amp;").replace(/"/g, "&quot;");
 }
 
 /**
@@ -184,18 +299,26 @@ function compileAttributeParts(root: DocumentFragment, parts: TemplatePart[]): v
  * @param parts - Parts accumulator.
  */
 function compileComponentParts(root: DocumentFragment, parts: TemplatePart[]): void {
-  const templates = Array.from(root.querySelectorAll("template[data-fabrica-component]"));
+  const templates = Array.from(
+    root.querySelectorAll("template[data-fabrica-component], template[data-fabrica-component-name], template[data-fabrica-explicit-component]"),
+  );
 
   for (let index = 0; index < templates.length; index += 1) {
     const element = templates[index];
     const rawIndex = element.getAttribute("data-fabrica-component");
-    const componentIndex = Number(rawIndex);
+    const rawName = element.getAttribute("data-fabrica-component-name") || element.getAttribute("name") || "";
+    const componentIndex = rawIndex == null ? -1 : Number(rawIndex);
 
-    if (!Number.isFinite(componentIndex)) {
+    if (rawIndex != null && !Number.isFinite(componentIndex)) {
       continue;
     }
 
-    parts.push({ type: "component", index: componentIndex, path: getNodePath(root, element) });
+    parts.push({
+      type: "component",
+      index: componentIndex,
+      path: getNodePath(root, element),
+      name: rawName || undefined,
+    });
   }
 }
 
