@@ -14,6 +14,11 @@
 
 ### Added
 
+- Added Fabrica `html.jsx` micro-JSX syntax for uppercase registered components without Babel or a virtual DOM.
+- Added Fabrica component registry APIs and explicit `<f-component name="...">` fallback composition.
+- Added missing component fallback UI so unresolved micro-JSX tags fail visibly and safely.
+- Re-exposed Broto signal/effect/computed/batch/resource primitives through `window.Fabrica` for userscript ergonomics.
+
 - Fabrica now includes configurable signal equality and scheduler configuration for microtask, animation-frame, and idle flushing.
 - Added effect flush loop protection to fail loudly on recursive signal write loops instead of silently locking the page.
 - Added `virtualRepeat()` for viewport-windowed keyed rendering of large lists.
@@ -34,8 +39,9 @@
 
 ### Validation
 
-- Source-only TypeScript check passed with a local dependency-free tsconfig.
-- Full `pnpm install`, `pnpm typecheck`, and `pnpm build` could not be completed in this sandbox because pnpm/esbuild dependencies were unavailable and registry access failed.
+- `npx tsc --noEmit` passed after installing project dependencies.
+- `npm run build --silent` passed and emitted updated IIFE/ESM bundles.
+- `npx vitest run` still has 2 pre-existing Cipó expectations failing around stylesheet insertion/alias output; these failures are unrelated to the Fabrica micro-JSX changes.
 
 ## Fabrica Elements bridge
 
@@ -69,3 +75,16 @@
 
 - Existing APIs remain available: `signal`, `effect`, `computed`, `resource`, `component`, `html`, `render`, `mount`, `ref`, `repeat`, `virtualRepeat`, `cipo`, and `css`.
 - Existing component factories still work. The new context/lifecycle fields are additive.
+
+## Unreleased - Fabrica UI runtime polish
+
+### Added
+
+- Added `Fabrica.jsx.html` as the preferred micro-JSX template entrypoint for editor syntax highlighting. `Fabrica.html.jsx` remains supported.
+- Added `component(name, factory)` for minifier-safe components while keeping `component(factory)` fully compatible.
+
+### Fixed
+
+- Dynamic props on component tags now preserve the raw value instead of being converted into HTML attributes. This enables patterns such as `jsx.html`\`<TabButton plugin=${item} />\`` where `plugin` can be a signal, object, function, node or any render-time value.
+- Fixed escaped whitespace in the micro-JSX component-tag compiler.
+- Fixed duplicate property binding state declaration in the DOM renderer.

@@ -1,8 +1,6 @@
-# [Rod Browser Toolbox](https://rodkisten.github.io/bundler)
+# Rod Browser Toolbox
 
 Browser-first build system for the Rod ecosystem. The project emits one browser global per root entrypoint, plus ESM/IIFE builds, extracted examples, and a generated landing page.
-
-[![📦 Publish browser bundle](https://github.com/rodkisten/bundler/actions/workflows/publish-browser-bundle.yml/badge.svg)](https://github.com/rodkisten/bundler/actions/workflows/publish-browser-bundle.yml)
 
 ## Packages
 
@@ -111,6 +109,38 @@ Output:
 
 The runtime now links DOM ranges to Broto owners, so effects, resources, context, refs, event listeners and lifecycle cleanup are disposed together.
 
+## Fábrica micro-JSX
+
+Fábrica now has a tiny JSX-like syntax inside template strings. It is still browser-native: no Babel, no AST transform, no virtual DOM.
+
+Input:
+
+```ts
+const Dock = Fabrica.component(function Dock() {
+  return Fabrica.html`<button>Open</button>`;
+});
+
+Fabrica.render(document.body, Fabrica.html.jsx`
+  <Dock />
+`);
+```
+
+Output:
+
+```html
+<button>Open</button>
+```
+
+For explicit parser-safe composition:
+
+```ts
+Fabrica.render(document.body, Fabrica.html.jsx`
+  <f-component name="Dock" />
+`);
+```
+
+Unregistered components render a visible `<fabrica-component-error>` fallback, which makes broken names obvious during userscript debugging.
+
 ## Error boundaries and owned async resources
 
 Input:
@@ -137,3 +167,19 @@ Output after success:
 ```html
 Rod
 ```
+
+## Fabrica micro-JSX, preferred syntax
+
+Use `Fabrica.jsx.html` for component templates. It keeps the runtime browser-native and usually gives better syntax highlighting than `html.jsx`.
+
+```ts
+const Panel = Fabrica.component("Panel", function Panel(props) {
+  return Fabrica.html`<section>${props.children}</section>`;
+});
+
+Fabrica.render(document.body, Fabrica.jsx.html`
+  <Panel>Inspector</Panel>
+`);
+```
+
+`Fabrica.html.jsx` still works. Dynamic props on component tags are passed as raw values, so objects, signals and functions are not stringified.
