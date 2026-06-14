@@ -1,31 +1,12 @@
-import {
-  batch,
-  computed,
-  effect,
-  memo,
-  signal,
-  untrack,
-} from "../broto/reactivity";
-import {
-  createRoot,
-  handleOwnerError,
-  provide,
-  runWithOwner,
-  useContext,
-} from "../broto/owner";
+import { batch, computed, effect, memo, signal, untrack } from "../broto/reactivity";
+import { createRoot, handleOwnerError, provide, runWithOwner, useContext } from "../broto/owner";
 import { resource } from "../broto/resources";
 import { debugState } from "./debug";
-import { registerComponent } from "./component-registry";
 import { registerCleanup } from "./dom-cleanup";
 import { appendValue } from "./dom";
 import { ref } from "./directives";
-import type {
-  Cleanup,
-  Component,
-  ComponentContext,
-  ComponentRenderRequest,
-  RenderValue,
-} from "./types";
+import { registerComponent } from "./component-registry";
+import type { Cleanup, Component, ComponentContext, ComponentRenderRequest, RenderValue } from "./types";
 
 let componentId = 0;
 
@@ -86,81 +67,20 @@ let componentId = 0;
  * });
  * ```
  */
-type ComponentFactory<Props extends object> = (
-  props: Props & { children?: RenderValue | readonly RenderValue[] },
-  context: ComponentContext,
-) => RenderValue;
-
-/**
- * Creates a reusable UI component with a Broto ownership boundary.
- *
- * @remarks
- * The preferred form is `component("Name", factory)` because it survives
- * minification and makes `jsx.html` string tags deterministic. The historical
- * `component(function Name(){...})` form still works and auto-registers the
- * function name when present.
- *
- * @example Named, minifier-safe component
- * ```ts
- * const Panel = component("Panel", function Panel(props) {
- *   return html`<section>${props.children}</section>`;
- * });
- *
- * render(root, jsx.html`<Panel>Hi</Panel>`);
- * ```
- *
- * @example Existing shorthand remains supported
- * ```ts
- * const Button = component(function Button() {
- *   return html`<button>Save</button>`;
- * });
- * ```
- */
 export function component<Props extends object = Record<string, never>>(
-  factory: ComponentFactory<Props>,
-): Component<Props>;
-export function component<Props extends object = Record<string, never>>(
-  name: string,
-  factory: ComponentFactory<Props>,
-): Component<Props>;
-export function component<Props extends object = Record<string, never>>(
-  nameOrFactory: string | ComponentFactory<Props>,
-  maybeFactory?: ComponentFactory<Props>,
+  factory: (props: Props & { children?: RenderValue | readonly RenderValue[] }, context: ComponentContext) => RenderValue,
 ): Component<Props> {
-  const explicitName =
-    typeof nameOrFactory === "string" ? nameOrFactory.trim() : "";
-  const factory = (
-    typeof nameOrFactory === "function" ? nameOrFactory : maybeFactory
-  ) as ComponentFactory<Props> | undefined;
+  const displayName = factory.name || "AnonymousComponent";
 
-  if (typeof factory !== "function") {
-    throw new TypeError("[Fabrica] component() expects a factory function.");
-  }
-
-  const displayName = explicitName || factory.name || "AnonymousComponent";
-
-  const renderComponent = ((
-    props?: Props & { children?: RenderValue | readonly RenderValue[] },
-  ): ComponentRenderRequest<Props> => ({
+  const renderComponent = ((props?: Props & { children?: RenderValue | readonly RenderValue[] }): ComponentRenderRequest<Props> => ({
     __kind: "componentRender",
     component: renderComponent as Component<Props>,
-    props: (props ?? {}) as Props & {
-      children?: RenderValue | readonly RenderValue[];
-    },
+    props: (props ?? {}) as Props & { children?: RenderValue | readonly RenderValue[] },
   })) as Component<Props>;
 
-  Object.defineProperty(renderComponent, "__kind", {
-    value: "component",
-    enumerable: false,
-  });
-  Object.defineProperty(renderComponent, "displayName", {
-    value: displayName,
-    enumerable: false,
-  });
-  Object.defineProperty(renderComponent, "factory", {
-    value: factory,
-    enumerable: false,
-  });
+  Object.defineProperty(renderComponent, "__kind", { value: "component", enumerable: false });
+  Object.defineProperty(renderComponent, "displayName", { value: displayName, enumerable: false });
+  Object.defineProperty(renderComponent, "factory", { value: factory, enumerable: false });
   debugState.components += 1;
 
   if (displayName && displayName !== "AnonymousComponent") {
@@ -194,89 +114,74 @@ export function component<Props extends object = Record<string, never>>(
  * <!--fabrica:component:Button:end-->
  * ```
  */
-export function materializeComponent<Props extends object>(
-  request: ComponentRenderRequest<Props>,
-): DocumentFragment {
-  const displayName =
-    request.component.displayName ||
-    request.component.factory?.name ||
-    "AnonymousComponent";
-  const factory = request.component.factory as
-    | ((
-        props: Props & { children?: RenderValue | readonly RenderValue[] },
-        context: ComponentContext,
-      ) => RenderValue)
-    | undefined;
+export function materializeComponent<Props extends object>(request: ComponentRenderRequest<Props>): DocumentFragment {
+  const displayName = request.component.displayName || request.component.factory?.name || "AnonymousComponent";
+  const factory = request.component.factory as ((props: Props & { children?: RenderValue | readonly RenderValue[] }, context: ComponentContext) => RenderValue) | undefined;
 
   if (!factory) {
     throw new Error(`[Fabrica] Component ${displayName} has no factory.`);
   }
 
   const mountCallbacks: Array<() => void | Cleanup> = [];
-  const start = document.createComment(
-    `fabrica:component:${displayName}:start`,
-  );
+  const start = document.createComment(`fabrica:component:${displayName}:start`);
   const end = document.createComment(`fabrica:component:${displayName}:end`);
   const fragment = document.createDocumentFragment();
 
   let componentDispose: Cleanup | null = null;
 
-  const [content, dispose] = createRoot<RenderValue>(
-    (disposeOwner, owner) => {
-      const context: ComponentContext = {
-        owner,
-        id: `fabrica-${++componentId}`,
-        signal,
-        effect,
-        computed,
-        memo,
-        batch,
-        untrack,
-        resource,
-        onMount(callback) {
-          mountCallbacks.push(callback);
-        },
-        onUnmount(callback) {
-          runWithOwner(owner, () => {
-            owner.cleanups.push(callback);
-          });
-        },
-        onDispose(callback) {
-          runWithOwner(owner, () => {
-            owner.cleanups.push(callback);
-          });
-        },
-        provide(contextToken, value) {
-          return runWithOwner(owner, () => provide(contextToken, value));
-        },
-        useContext(contextToken) {
-          return runWithOwner(owner, () => useContext(contextToken));
-        },
-        ref(callback) {
-          return ref((node) => {
-            const cleanup = callback(node);
+  const [content, dispose] = createRoot<RenderValue>((disposeOwner, owner) => {
+    const context: ComponentContext = {
+      owner,
+      id: `fabrica-${++componentId}`,
+      signal,
+      effect,
+      computed,
+      memo,
+      batch,
+      untrack,
+      resource,
+      onMount(callback) {
+        mountCallbacks.push(callback);
+      },
+      onUnmount(callback) {
+        runWithOwner(owner, () => {
+          owner.cleanups.push(callback);
+        });
+      },
+      onDispose(callback) {
+        runWithOwner(owner, () => {
+          owner.cleanups.push(callback);
+        });
+      },
+      provide(contextToken, value) {
+        return runWithOwner(owner, () => provide(contextToken, value));
+      },
+      useContext(contextToken) {
+        return runWithOwner(owner, () => useContext(contextToken));
+      },
+      ref(callback) {
+        return ref((node) => {
+          const cleanup = callback(node);
 
-            if (typeof cleanup === "function") {
-              owner.cleanups.push(cleanup);
-            }
-          });
-        },
-      };
+          if (typeof cleanup === "function") {
+            owner.cleanups.push(cleanup);
+          }
+        });
+      },
+    };
 
-      componentDispose = disposeOwner;
+    componentDispose = disposeOwner;
 
-      try {
-        return factory(request.props, context);
-      } catch (error) {
-        if (!handleOwnerError(error, owner)) {
-          throw error;
-        }
-
-        return null;
+    try {
+      return factory(request.props, context);
+    } catch (error) {
+      if (!handleOwnerError(error, owner)) {
+        throw error;
       }
-    },
-    { name: displayName },
-  );
+
+      return null;
+    }
+  }, { name: displayName });
 
   fragment.append(start);
   appendValue(fragment, content);

@@ -29,7 +29,25 @@ export type RenderValue =
   | RawHtml
   | DomBag
   | Component
-  | ComponentRenderRequest;
+  | ComponentRenderRequest
+  | RenderablePayload
+  | CssLikeArtifact;
+
+
+/** Payload shape returned by Fabrica Elements/Cipó adapters in non-DOM modes. */
+export type RenderablePayload = {
+  readonly tag: string;
+  readonly props?: Record<string, unknown> | null;
+};
+
+/** Structural style artifact shape produced by Cipó. */
+export type CssLikeArtifact = {
+  readonly kind?: string;
+  readonly className?: string;
+  readonly cssText?: string;
+  readonly compiledCss?: string;
+  toString?: () => string;
+};
 
 /** Runtime debug counters. */
 export type DebugSnapshot = {

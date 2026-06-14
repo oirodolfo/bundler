@@ -4,7 +4,9 @@ import type {
   ComponentRenderRequest,
   Directive,
   DomBag,
+  CssLikeArtifact,
   RawHtml,
+  RenderablePayload,
   RefDirective,
   Signal,
   StyleMapDirective,
@@ -164,4 +166,44 @@ export function isPlainObject(value: unknown): value is Record<string, unknown> 
  */
 export function isTemplateStringsArray(value: unknown): value is TemplateStringsArray {
   return Array.isArray(value) && "raw" in value;
+}
+
+
+/**
+ * Checks whether a value is a Fabrica Elements/Cipó payload.
+ *
+ * @param value - Unknown value.
+ * @returns Whether the value can be materialized as a DOM element.
+ */
+export function isRenderablePayload(value: unknown): value is RenderablePayload {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      typeof (value as RenderablePayload).tag === "string" &&
+      ((value as RenderablePayload).props == null || typeof (value as RenderablePayload).props === "object"),
+  );
+}
+
+/**
+ * Checks whether a value looks like a Cipó class-list artifact.
+ *
+ * @param value - Unknown value.
+ * @returns Whether the value exposes a generated class name.
+ */
+export function isCssClassArtifact(value: unknown): value is CssLikeArtifact & { className: string } {
+  return Boolean(value && typeof value === "object" && typeof (value as CssLikeArtifact).className === "string");
+}
+
+/**
+ * Checks whether a value looks like a CSS text artifact.
+ *
+ * @param value - Unknown value.
+ * @returns Whether the value exposes CSS text.
+ */
+export function isCssTextArtifact(value: unknown): value is CssLikeArtifact {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      (typeof (value as CssLikeArtifact).cssText === "string" || typeof (value as CssLikeArtifact).compiledCss === "string"),
+  );
 }

@@ -1,84 +1,31 @@
-import {
-  batch,
-  computed,
-  effect,
-  memo,
-  signal,
-  untrack,
-  configureScheduler,
-  flushSync,
-  scheduleTask,
-} from "../broto/reactivity";
-import { resource } from "../broto/resources";
 import { $, createDomBag } from "./bag";
 import { component } from "./component";
-import {
-  clearComponents,
-  listComponents,
-  registerComponent,
-  resolveComponent,
-  unregisterComponent,
-} from "./component-registry";
 import { boundary } from "./boundary";
 import { createFabricaContext, provide, useContext } from "./context";
 import { css } from "./css";
 import { debug, setDebug } from "./debug";
-import {
-  classMap,
-  ref,
-  repeat,
-  styleMap,
-  virtualRepeat,
-  when,
-} from "./directives";
+import { classMap, ref, repeat, styleMap, virtualRepeat, when } from "./directives";
 import { html, jsx, mount, render } from "./dom";
 import { defineElement, elements } from "./elements";
-import {
-  install as installGlobal,
-  noConflict as restoreGlobals,
-} from "./install";
+import { install as installGlobal, noConflict as restoreGlobals } from "./install";
 import { config } from "./install-state";
 import { rawHtml, sanitizedHtml, trustedHtml, unsafeHtml } from "./raw";
-import type {
-  Component,
-  DebugSnapshot,
-  DomBag,
-  InstallOptions,
-  RawHtml,
-  RenderValue,
-} from "./types";
+import { clearComponents, isRegisteredComponentName, listComponents, registerComponent, resolveComponent, unregisterComponent } from "./component-registry";
+import type { DebugSnapshot, DomBag, InstallOptions, RawHtml, RenderValue } from "./types";
 
 /** Public FabricaDOM API shape. */
 export type FabricaApi = {
-  html: typeof html & {
-    jsx(
-      strings: TemplateStringsArray,
-      ...values: RenderValue[]
-    ): DocumentFragment;
-    raw(value: string): RawHtml;
-    sanitized(value: string): RawHtml;
-    trusted(value: string): RawHtml;
-    unsafe(value: string): RawHtml;
-  };
+  html: typeof html & { jsx: typeof html; raw(value: string): RawHtml; sanitized(value: string): RawHtml; trusted(value: string): RawHtml; unsafe(value: string): RawHtml };
   jsx: typeof jsx;
   render: typeof render;
   mount: typeof mount;
-  signal: typeof signal;
-  effect: typeof effect;
-  computed: typeof computed;
-  memo: typeof memo;
-  batch: typeof batch;
-  untrack: typeof untrack;
-  resource: typeof resource;
-  configureScheduler: typeof configureScheduler;
-  flushSync: typeof flushSync;
-  scheduleTask: typeof scheduleTask;
   component: typeof component;
   registerComponent: typeof registerComponent;
   unregisterComponent: typeof unregisterComponent;
   resolveComponent: typeof resolveComponent;
   listComponents: typeof listComponents;
   clearComponents: typeof clearComponents;
+  isRegisteredComponentName: typeof isRegisteredComponentName;
   boundary: typeof boundary;
   createContext: typeof createFabricaContext;
   provide: typeof provide;
@@ -104,15 +51,6 @@ export type FabricaApi = {
  * Creates the frozen public API object.
  *
  * @returns Public API.
- *
- * @example Micro-JSX components
- * ```ts
- * const Dock = component(function Dock() {
- *   return html`<button>Open</button>`;
- * });
- *
- * render(document.body, jsx.html`<Dock />`);
- * ```
  */
 export function createFabricaApi(): FabricaApi {
   const htmlWithRaw = html as FabricaApi["html"];
@@ -128,19 +66,13 @@ export function createFabricaApi(): FabricaApi {
     sanitizedHtml,
     trustedHtml,
     unsafeHtml,
-    signal,
-    effect,
-    computed,
-    memo,
-    batch,
-    untrack,
-    resource,
     component,
     registerComponent,
     unregisterComponent,
     resolveComponent,
     listComponents,
     clearComponents,
+    isRegisteredComponentName,
     boundary,
     createContext: createFabricaContext,
     provide,
@@ -159,22 +91,13 @@ export function createFabricaApi(): FabricaApi {
     jsx,
     render,
     mount,
-    signal,
-    effect,
-    computed,
-    memo,
-    batch,
-    untrack,
-    resource,
-    configureScheduler,
-    flushSync,
-    scheduleTask,
     component,
     registerComponent,
     unregisterComponent,
     resolveComponent,
     listComponents,
     clearComponents,
+    isRegisteredComponentName,
     boundary,
     createContext: createFabricaContext,
     provide,
@@ -204,4 +127,4 @@ export function createFabricaApi(): FabricaApi {
 }
 
 /** Convenience public aliases used in examples. */
-export type { Component, DomBag, InstallOptions, RawHtml, RenderValue };
+export type { DomBag, InstallOptions, RawHtml, RenderValue };
